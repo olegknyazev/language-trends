@@ -1,5 +1,8 @@
-# VSCode
-.vscode/
+# Language Trends (this application)
+/auth_token.txt
+
+# Python
+__pycache__
 
 # Virtualenv
 .Python
@@ -12,3 +15,6 @@
 pyvenv.cfg
 .venv
 pip-selfcheck.json
+
+# VSCode
+/.vscode/
