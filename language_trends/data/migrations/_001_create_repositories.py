@@ -1,4 +1,4 @@
-def do(cursor):
+def perform(cursor):
   cursor.execute(
     '''CREATE TABLE IF NOT EXISTS repositories (
         id varchar(40) PRIMARY KEY,

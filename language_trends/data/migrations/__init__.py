@@ -11,7 +11,7 @@ def migrate(cursor):
   all_migrations = _available_migrations()
   if applied_migrations:
     last_migration = applied_migrations[-1]
-    start_idx = all_migrations.index(last_migration)
+    start_idx = all_migrations.index(last_migration) + 1
   _perform_migrations(cursor, itertools.islice(all_migrations, start_idx, len(all_migrations)))
 
 def _migrations_path(): return os.path.dirname(__file__)
@@ -29,9 +29,11 @@ def _available_migrations():
   return _avail_migrations
 
 def _initialize_migration_table(cursor):
-  cursor.execute('CREATE TABLE IF NOT EXISTS migrations (name varchar(40) NOT NULL);')
+  cursor.execute('CREATE TABLE IF NOT EXISTS migrations (name varchar(40) PRIMARY KEY);')
 
-def _perform_migrations(c, migrations):
 def _perform_migrations(cursor, migrations):
+  import importlib
   for m in migrations:
-    print(f'APPLYING {m}')
+    mig_module = importlib.import_module('.' + m, __package__)
+    mig_module.perform(cursor)
+    cursor.execute('INSERT INTO migrations VALUES (%s)', (m,))
