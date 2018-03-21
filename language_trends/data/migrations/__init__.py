@@ -5,13 +5,10 @@ from glob import glob
 
 def migrate(cursor):
   _initialize_migration_table(cursor)
-  applied_migrations = _query_applied_migrations(cursor)
-  start_idx = 0
-  all_migrations = _available_migrations()
-  if applied_migrations:
-    last_migration = applied_migrations[-1]
-    start_idx = all_migrations.index(last_migration) + 1
-  _perform_migrations(cursor, itertools.islice(all_migrations, start_idx, len(all_migrations)))
+  applied_migs = _query_applied_migrations(cursor)
+  all_migs = _load_available_migrations()
+  start_idx = all_migs.index(applied_migs[-1]) + 1 if applied_migs else 0
+  _perform_migrations(cursor, itertools.islice(all_migs, start_idx, len(all_migs)))
 
 def rollback(cursor):
   _initialize_migration_table(cursor)
@@ -25,15 +22,10 @@ def _query_applied_migrations(cursor):
   cursor.execute('SELECT * FROM migrations ORDER BY name;')
   return [m[0] for m in cursor]
 
-_avail_migrations = None
-def _available_migrations():
-  global _avail_migrations
-  if _avail_migrations is None:
-    _avail_migrations = [
-      os.path.splitext(f)[0] for f in os.listdir(_migrations_path())
-        if MIGRATION_PATTERN.fullmatch(f)]
-    _avail_migrations.sort()
-  return _avail_migrations
+def _load_available_migrations():
+  return sorted(
+    os.path.splitext(f)[0] for f in os.listdir(_migrations_path())
+      if MIGRATION_PATTERN.fullmatch(f))
 
 def _initialize_migration_table(cursor):
   cursor.execute('CREATE TABLE IF NOT EXISTS migrations (name varchar(40) PRIMARY KEY);')
