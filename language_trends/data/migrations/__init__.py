@@ -3,16 +3,22 @@ import os
 import re
 from glob import glob
 
-def migrate(cursor):
+def migrate(cursor, max_count = -1):
   _initialize_migration_table(cursor)
+  if max_count == 0:
+    return
   applied_migs = _query_applied_migrations(cursor)
   all_migs = _load_available_migrations()
   start_idx = all_migs.index(applied_migs[-1]) + 1 if applied_migs else 0
-  _perform_migrations(cursor, itertools.islice(all_migs, start_idx, len(all_migs)))
+  end_idx = start_idx + max_count if max_count >= 0 else len(all_migs)
+  _perform_migrations(cursor, itertools.islice(all_migs, start_idx, end_idx))
 
-def rollback(cursor):
+def rollback(cursor, max_count = -1):
   _initialize_migration_table(cursor)
-  _rollback_migrations(cursor, _query_applied_migrations(cursor))
+  if max_count == 0:
+    return
+  applied_migs = _query_applied_migrations(cursor)
+  _rollback_migrations(cursor, applied_migs[-max_count:] if max_count >= 0 else applied_migs)
 
 MIGRATION_PATTERN = re.compile(r'_\d{3}_.*\.py')
 
