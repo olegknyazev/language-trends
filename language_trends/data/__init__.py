@@ -18,8 +18,12 @@ def initialize():
   if is_initialized():
     return
   _conn = db.connect(**CONNECTION_PARAMS)
-  with _cursor() as c:
-    migrate(c)
+  try:
+    with _cursor() as c:
+      migrate(c)
+  except:
+    _conn = None
+    raise
 
 def store(record):
   if not is_initialized():
@@ -35,5 +39,8 @@ def _cursor():
   try:
     yield cursor
     _conn.commit()
+  except:
+    _conn.rollback()
+    raise
   finally:
     cursor.close()
