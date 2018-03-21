@@ -6,6 +6,10 @@ def migrate():
   with data_access.transaction() as c:
     migrations.migrate(c)
 
+def rollback():
+  with data_access.transaction() as c:
+    migrations.rollback(c)
+
 if __name__ == '__main__':
   if len(sys.argv) != 2:
     print('Expected exactly one argument')

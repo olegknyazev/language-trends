@@ -5,3 +5,6 @@ def perform(cursor):
           REFERENCES repositories ON DELETE CASCADE ON UPDATE CASCADE,
         date date NOT NULL,
         commit_count integer NOT NULL DEFAULT 0)''')
+
+def rollback(cursor):
+  cursor.execute('DROP TABLE commits_per_day;')
