@@ -1,9 +1,10 @@
 import sys
-from language_trends import data
+import language_trends.data.access as data_access
+import language_trends.data.migrations as migrations
 
 def migrate():
-  with data.transaction() as c:
-    data.migrations.migrate(c)
+  with data_access.transaction() as c:
+    migrations.migrate(c)
 
 if __name__ == '__main__':
   if len(sys.argv) != 2:
