@@ -1,5 +1,5 @@
-def update(c):
-  c.execute(
+def do(cursor):
+  cursor.execute(
     '''CREATE TABLE IF NOT EXISTS repositories (
         id varchar(40) PRIMARY KEY,
         name varchar(40) NOT NULL,

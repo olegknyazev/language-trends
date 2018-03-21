@@ -3,16 +3,16 @@ import os
 import re
 from glob import glob
 
-def migrate(c):
-  _initialize_migration_table(c)
-  c.execute('SELECT * FROM migrations ORDER BY name;')
+def migrate(cursor):
+  _initialize_migration_table(cursor)
+  cursor.execute('SELECT * FROM migrations ORDER BY name;')
   start_idx = 0
-  applied_migrations = [m[0] for m in c]
+  applied_migrations = [m[0] for m in cursor]
   all_migrations = _available_migrations()
   if applied_migrations:
     last_migration = applied_migrations[-1]
     start_idx = all_migrations.index(last_migration)
-  _perform_migrations(c, itertools.islice(all_migrations, start_idx, len(all_migrations)))
+  _perform_migrations(cursor, itertools.islice(all_migrations, start_idx, len(all_migrations)))
 
 def _migrations_path(): return os.path.dirname(__file__)
 
@@ -28,9 +28,10 @@ def _available_migrations():
     _avail_migrations.sort()
   return _avail_migrations
 
-def _initialize_migration_table(c):
-  c.execute('CREATE TABLE IF NOT EXISTS migrations (name varchar(40) NOT NULL);')
+def _initialize_migration_table(cursor):
+  cursor.execute('CREATE TABLE IF NOT EXISTS migrations (name varchar(40) NOT NULL);')
 
 def _perform_migrations(c, migrations):
+def _perform_migrations(cursor, migrations):
   for m in migrations:
     print(f'APPLYING {m}')

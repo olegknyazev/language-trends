@@ -31,9 +31,9 @@ def store(record):
 
 @contextmanager
 def _cursor():
-  c = _conn.cursor()
+  cursor = _conn.cursor()
   try:
-    yield c
+    yield cursor
     _conn.commit()
   finally:
-    c.close()
+    cursor.close()
