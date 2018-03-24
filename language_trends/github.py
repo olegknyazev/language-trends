@@ -1,26 +1,44 @@
 import requests
 import os.path
+import functools
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
 
 def fetch_repos(language):
-  result = _query('''{
+  """Yields all the repositories in the form (id, name) for the provided language."""
+  result = _query(r'''{
       search(query: "language:%s", type: REPOSITORY, first: 20) {
         edges {
           node {
             ... on Repository {
               id
-              name
-            }
-          }
-          cursor
-        }
-      }
-  }''' % (language))
-  edges = result['data']['search']['edges']
+              name }}
+          cursor }}}''' % (language))
+  edges = _getin(result, 'data', 'search', 'edges')
   for e in edges:
-    yield e['node']['id'], e['node']['name']
+    node = e['node']
+    yield node['id'], node['name']
+
+def fetch_commits(repo_id):
+  """Yields all the commits from the repository specified by repo_id, starting
+  from the most recent one.
+  """
+  result = _query(r'''{
+    node(id: "%s") {
+      ... on Repository {
+        defaultBranchRef {
+          target {
+            ... on Commit {
+              history(first: 20) {
+                nodes {
+                  committedDate }}}}}}}}''' % (repo_id))
+  history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history', 'nodes')
+  for commit in history:
+    yield commit['committedDate']
+
+def _getin(obj, *path):
+  return functools.reduce(lambda obj, seg: obj[seg], path, obj)
 
 def _query(query):
   return requests.post(
