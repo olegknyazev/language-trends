@@ -1,6 +1,7 @@
 import requests
 import os.path
 import functools
+import dateutil.parser
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
@@ -35,7 +36,7 @@ def fetch_commits(repo_id):
                   committedDate }}}}}}}}''' % (repo_id))
   history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history', 'nodes')
   for commit in history:
-    yield commit['committedDate']
+    yield dateutil.parser.parse(commit['committedDate'])
 
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
