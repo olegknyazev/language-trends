@@ -11,25 +11,24 @@ def fetch_repos(language):
   def _after(cursor):
     return f', after: "{cursor}"' if cursor is not None else ""
   cursor = None
-  exhausted = False
+  hasNextPage = True
   bucket_size = 20
-  while not exhausted:
+  while hasNextPage:
     result = _query(r'''{
         search(query: "language:%s", type: REPOSITORY, first: %d %s) {
-          edges {
-            node {
-              ... on Repository {
-                id
-                name }}
-            cursor }}}''' % (language, bucket_size, _after(cursor)))
-    edges = _getin(result, 'data', 'search', 'edges')
-    retrieved = 0
-    for e in edges:
-      node = e['node']
+          nodes {
+            ... on Repository {
+              id
+              name }}
+          pageInfo {
+            endCursor
+            hasNextPage }}}''' % (language, bucket_size, _after(cursor)))
+    search = _getin(result, 'data', 'search')
+    nodes = _getin(search, 'nodes')
+    for node in nodes:
       yield node['id'], node['name']
-      cursor = e['cursor']
-      retrieved += 1
-    exhausted = retrieved < bucket_size
+    cursor = _getin(search, 'pageInfo', 'endCursor')
+    hasNextPage = _getin(search, 'pageInfo', 'hasNextPage')
 
 def fetch_commits(repo_id):
   """Yields all the commits from the repository specified by repo_id, starting
