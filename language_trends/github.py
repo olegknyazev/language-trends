@@ -8,18 +8,28 @@ SERVICE_END_POINT = 'https://api.github.com/graphql'
 
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
-  result = _query(r'''{
-      search(query: "language:%s", type: REPOSITORY, first: 20) {
-        edges {
-          node {
-            ... on Repository {
-              id
-              name }}
-          cursor }}}''' % (language))
-  edges = _getin(result, 'data', 'search', 'edges')
-  for e in edges:
-    node = e['node']
-    yield node['id'], node['name']
+  def _after(cursor):
+    return f', after: "{cursor}"' if cursor is not None else ""
+  cursor = None
+  exhausted = False
+  bucket_size = 20
+  while not exhausted:
+    result = _query(r'''{
+        search(query: "language:%s", type: REPOSITORY, first: %d %s) {
+          edges {
+            node {
+              ... on Repository {
+                id
+                name }}
+            cursor }}}''' % (language, bucket_size, _after(cursor)))
+    edges = _getin(result, 'data', 'search', 'edges')
+    retrieved = 0
+    for e in edges:
+      node = e['node']
+      yield node['id'], node['name']
+      cursor = e['cursor']
+      retrieved += 1
+    exhausted = retrieved < bucket_size
 
 def fetch_commits(repo_id):
   """Yields all the commits from the repository specified by repo_id, starting
