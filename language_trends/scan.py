@@ -2,16 +2,13 @@ import itertools
 from . import github
 from . import data
 
-def scan_commits(language):
-  """Returns an iterator yielding actions that should be performed to make
-  the database reflect the current GitHub state.
-  """
-  for repo_id, repo_name in github.fetch_repos(language):
-    yield lambda: data.store_repo(repo_id, repo_name, language)
+def scan_commits(language, max_repos=-1, max_days=-1):
+  for repo_id, repo_name in _take(github.fetch_repos(language), max_repos):
+    data.store_repo(repo_id, repo_name, language)
     all_commits = github.fetch_commits(repo_id)
-    for date, commits in itertools.groupby(all_commits, key=lambda dt: dt.date()):
-      yield lambda: data.store_commits(repo_id, date, sum(1 for c in commits))
+    commits_by_day = itertools.groupby(all_commits, key=lambda dt: dt.date())
+    for date, commits in _take(commits_by_day, max_days):
+      data.store_commits(repo_id, date, sum(1 for c in commits))
 
-def perform(actions):
-  for a in actions:
-    a()
+def _take(iter, num):
+  return itertools.islice(iter, num) if num >= 0 else iter
