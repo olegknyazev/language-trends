@@ -19,6 +19,17 @@ def store_commits(repo_id, date, commits_count):
             SET commit_count = EXCLUDED.commit_count;''',
       (repo_id, date, commits_count))
 
+def commits_by_language(language):
+  with _transaction() as c:
+    c.execute(
+     '''SELECT c.date, SUM(c.commit_count)
+          FROM commits_per_day c JOIN repositories r ON c.repository_id = r.id
+          WHERE r.language = %s
+          GROUP BY c.date
+          ORDER BY c.date;''',
+      (language,))
+    return list(c)
+
 _migrated = False
 
 @contextmanager
