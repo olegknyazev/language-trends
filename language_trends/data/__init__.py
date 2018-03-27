@@ -1,3 +1,4 @@
+from psycopg2.extras import execute_values # TODO do not use psycopg2 name here
 from contextlib import contextmanager
 from . import migrations
 from . import access
@@ -18,6 +19,14 @@ def store_commits(repo_id, date, commits_count):
           ON CONFLICT (repository_id, date) DO UPDATE
             SET commit_count = EXCLUDED.commit_count;''',
       (repo_id, date, commits_count))
+
+def store_commits(repo_id, data):
+  with _transaction() as c:
+    execute_values(c,
+     '''INSERT INTO commits_per_day VALUES %s
+          ON CONFLICT (repository_id, date) DO UPDATE
+            SET commit_count = EXCLUDED.commit_count;''',
+      ((repo_id, date, commits) for date, commits in data))
 
 def repo_count(language):
   with _transaction() as c:

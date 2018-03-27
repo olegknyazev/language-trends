@@ -18,12 +18,9 @@ def update(language='clojure'):
         last_commit = datetime.datetime.combine(last_commit, datetime.time.min)
       commits_since_last = github.fetch_commits(repo_id, since=last_commit)
       commits_by_day = itertools.groupby(commits_since_last, key=lambda dt: dt.date())
-      cc = 0
-      for date, commits in commits_by_day:
-        ccc = sum(1 for c in commits)
-        data.store_commits(repo_id, date, ccc)
-        cc += ccc
-      print(f'PROCESSED {repo_name}, {cc} commits')
+      records = [(date, sum(1 for c in commits)) for date, commits in commits_by_day]
+      data.store_commits(repo_id, records)
+      print(f'PROCESSED {repo_name}, {len(records)} days, {sum(r[1] for r in records)} commits')
 
 def scan_commits(language, max_repos=-1, max_days=-1):
   for repo_id, repo_name in _take(github.fetch_repos(language), max_repos):
