@@ -3,6 +3,7 @@ import os.path
 import functools
 import dateutil.parser
 import string
+import datetime
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
@@ -41,6 +42,7 @@ def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
+  since = since.isoformat() if isinstance(since, datetime.datetime) else since
   bucket_size = 100
   cursor = None
   has_next_page = True
@@ -78,7 +80,7 @@ def _pagination_clauses(first=None, after=None):
 
 def _search_clause(language, first=None, after=None):
   extra = ''.join(', ' + c for c in _pagination_clauses(first, after))
-  return fr'search(query: "language:{language} size:>=1000", type: REPOSITORY {extra})'
+  return fr'search(query: "language:{language} size:>=10000", type: REPOSITORY {extra})'
 
 def _query(query):
   return requests.post(

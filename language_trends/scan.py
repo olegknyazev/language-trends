@@ -1,6 +1,29 @@
 import itertools
+import datetime
 from . import github
 from . import data
+
+def should_update(language):
+  scanned = data.repo_count(language)
+  total = github.repo_count(language)
+  return scanned < total
+
+def update(language='clojure'):
+  if should_update(language):
+    for repo_id, repo_name in github.fetch_repos(language):
+      last_commit = data.last_commit_date(repo_id)
+      if last_commit is None:
+        data.store_repo(repo_id, repo_name, language)
+      else:
+        last_commit = datetime.datetime.combine(last_commit, datetime.time.min)
+      commits_since_last = github.fetch_commits(repo_id, since=last_commit)
+      commits_by_day = itertools.groupby(commits_since_last, key=lambda dt: dt.date())
+      cc = 0
+      for date, commits in commits_by_day:
+        ccc = sum(1 for c in commits)
+        data.store_commits(repo_id, date, ccc)
+        cc += ccc
+      print(f'PROCESSED {repo_name}, {cc} commits')
 
 def scan_commits(language, max_repos=-1, max_days=-1):
   for repo_id, repo_name in _take(github.fetch_repos(language), max_repos):
@@ -12,3 +35,6 @@ def scan_commits(language, max_repos=-1, max_days=-1):
 
 def _take(iter, num):
   return itertools.islice(iter, num) if num >= 0 else iter
+
+if __name__ == '__main__':
+  update()
