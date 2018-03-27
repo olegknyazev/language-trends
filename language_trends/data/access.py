@@ -1,4 +1,5 @@
 import psycopg2 as db
+import psycopg2.extras
 from contextlib import contextmanager
 from .migrations import migrate
 
@@ -8,6 +9,8 @@ CONNECTION_PARAMS = {
   'user': 'language-trends',
   'password': 'language-trends'
 }
+
+execute_values = psycopg2.extras.execute_values
 
 @contextmanager
 def transaction():
