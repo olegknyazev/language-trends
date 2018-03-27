@@ -1,6 +1,6 @@
 from datetime import date
-from flask import Flask, jsonify, request, render_template
-from flask.json import JSONEncoder
+from flask import Flask, render_template
+from flask.json import JSONEncoder, dumps
 from .. import data
 
 class CustomJSONEncoder(JSONEncoder):
@@ -9,14 +9,9 @@ class CustomJSONEncoder(JSONEncoder):
         return obj.isoformat()
     return super().default(self, obj)
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='')
 app.json_encoder = CustomJSONEncoder
 
 @app.route('/')
 def index():
-  return render_template('index.html')
-
-@app.route('/api/commits')
-def commits():
-  commits = data.commits_by_language(request.args['language'])
-  return jsonify(commits)
+  return render_template('index.html', data=dumps(data.commits_by_language('clojure')))
