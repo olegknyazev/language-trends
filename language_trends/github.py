@@ -37,13 +37,14 @@ def fetch_repos(language):
     cursor = _getin(search, 'pageInfo', 'endCursor')
     has_next_age = _getin(search, 'pageInfo', 'hasNextPage')
 
-def fetch_commits(repo_id):
+def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
   bucket_size = 100
   cursor = None
   has_next_page = True
+  since_clause = f', since: "{since}"' if since is not None else ''
   while has_next_page:
     result = _query(string.Template(r'''{
       node(id: "$id") {
@@ -51,15 +52,15 @@ def fetch_commits(repo_id):
           defaultBranchRef {
             target {
               ... on Commit {
-                history($page_clause) {
+                history($page_clause $since_clause) {
                   nodes {
                     committedDate }
                   pageInfo {
                     endCursor
                     hasNextPage }}}}}}}}''').substitute(
                       id=repo_id,
+                      since_clause=since_clause,
                       page_clause=', '.join(_pagination_clauses(bucket_size, cursor))))
-    print(result)
     history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history')
     for commit in history['nodes']:
       yield dateutil.parser.parse(commit['committedDate'])
