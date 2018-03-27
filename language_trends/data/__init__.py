@@ -24,6 +24,11 @@ def repo_count(language):
     c.execute('SELECT COUNT(*) FROM repositories WHERE language = %s;', (language,))
     return c.fetchone()[0]
 
+def last_commit_date(repo_id):
+  with _transaction() as c:
+    c.execute('SELECT MAX(date) FROM commits_per_day WHERE repository_id = %s', (repo_id,))
+    return c.fetchone()[0]
+
 def commits_by_language(language):
   with _transaction() as c:
     c.execute(
