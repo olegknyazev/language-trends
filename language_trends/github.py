@@ -2,6 +2,7 @@ import requests
 import os.path
 import functools
 import dateutil.parser
+import string
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
@@ -14,15 +15,18 @@ def fetch_repos(language):
   hasNextPage = True
   bucket_size = 20
   while hasNextPage:
-    result = _query(r'''{
-        search(query: "language:%s", type: REPOSITORY, first: %d %s) {
+    result = _query(string.Template(r'''{
+        search(query: "language:$lang", type: REPOSITORY, first: $count $extra) {
           nodes {
             ... on Repository {
               id
               name }}
           pageInfo {
             endCursor
-            hasNextPage }}}''' % (language, bucket_size, _after(cursor)))
+            hasNextPage }}}''').substitute(
+              lang=language,
+              count=bucket_size,
+              extra=_after(cursor)))
     search = _getin(result, 'data', 'search')
     nodes = _getin(search, 'nodes')
     for node in nodes:
@@ -34,15 +38,15 @@ def fetch_commits(repo_id):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
-  result = _query(r'''{
-    node(id: "%s") {
+  result = _query(string.Template(r'''{
+    node(id: "$id") {
       ... on Repository {
         defaultBranchRef {
           target {
             ... on Commit {
               history(first: 20) {
                 nodes {
-                  committedDate }}}}}}}}''' % (repo_id))
+                  committedDate }}}}}}}}''').substitute(id=repo_id))
   history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history', 'nodes')
   for commit in history:
     yield dateutil.parser.parse(commit['committedDate'])
