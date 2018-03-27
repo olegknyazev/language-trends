@@ -7,16 +7,21 @@ import string
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
 
+def repo_count(language):
+  result = _query(string.Template(r'''{
+      $search {
+        repositoryCount
+      }}''').substitute(search=_search_clause(language)))
+  return _getin(result, 'data', 'search', 'repositoryCount')
+
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
-  def _after(cursor):
-    return f', after: "{cursor}"' if cursor is not None else ""
   cursor = None
   hasNextPage = True
   bucket_size = 20
   while hasNextPage:
     result = _query(string.Template(r'''{
-        search(query: "language:$lang", type: REPOSITORY, first: $count $extra) {
+        $search {
           nodes {
             ... on Repository {
               id
@@ -24,9 +29,7 @@ def fetch_repos(language):
           pageInfo {
             endCursor
             hasNextPage }}}''').substitute(
-              lang=language,
-              count=bucket_size,
-              extra=_after(cursor)))
+              search=_search_clause(language, bucket_size, cursor)))
     search = _getin(result, 'data', 'search')
     nodes = _getin(search, 'nodes')
     for node in nodes:
@@ -53,6 +56,11 @@ def fetch_commits(repo_id):
 
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
+
+def _search_clause(language, first=None, after=None):
+  first_clause = f', first: {first}' if first is not None else ''
+  after_clause = f', after: "{after}"' if after is not None else ''
+  return fr'search(query: "language:{language}", type: REPOSITORY {first_clause} {after_clause})'
 
 def _query(query):
   return requests.post(
