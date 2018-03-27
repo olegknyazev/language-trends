@@ -58,9 +58,9 @@ def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
 
 def _search_clause(language, first=None, after=None):
-  first_clause = f', first: {first}' if first is not None else ''
-  after_clause = f', after: "{after}"' if after is not None else ''
-  return fr'search(query: "language:{language}", type: REPOSITORY {first_clause} {after_clause})'
+  c1 = f', first: {first}' if first is not None else ''
+  c2 = f', after: "{after}"' if after is not None else ''
+  return fr'search(query: "language:{language} size:>=1000", type: REPOSITORY {c1} {c2})'
 
 def _query(query):
   return requests.post(
