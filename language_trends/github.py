@@ -17,9 +17,9 @@ def repo_count(language):
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
   cursor = None
-  hasNextPage = True
-  bucket_size = 20
-  while hasNextPage:
+  has_next_age = True
+  bucket_size = 100
+  while has_next_age:
     result = _query(string.Template(r'''{
         $search {
           nodes {
@@ -35,32 +35,49 @@ def fetch_repos(language):
     for node in nodes:
       yield node['id'], node['name']
     cursor = _getin(search, 'pageInfo', 'endCursor')
-    hasNextPage = _getin(search, 'pageInfo', 'hasNextPage')
+    has_next_age = _getin(search, 'pageInfo', 'hasNextPage')
 
 def fetch_commits(repo_id):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
-  result = _query(string.Template(r'''{
-    node(id: "$id") {
-      ... on Repository {
-        defaultBranchRef {
-          target {
-            ... on Commit {
-              history(first: 20) {
-                nodes {
-                  committedDate }}}}}}}}''').substitute(id=repo_id))
-  history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history', 'nodes')
-  for commit in history:
-    yield dateutil.parser.parse(commit['committedDate'])
+  bucket_size = 100
+  cursor = None
+  has_next_page = True
+  while has_next_page:
+    result = _query(string.Template(r'''{
+      node(id: "$id") {
+        ... on Repository {
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history($page_clause) {
+                  nodes {
+                    committedDate }
+                  pageInfo {
+                    endCursor
+                    hasNextPage }}}}}}}}''').substitute(
+                      id=repo_id,
+                      page_clause=', '.join(_pagination_clauses(bucket_size, cursor))))
+    print(result)
+    history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history')
+    for commit in history['nodes']:
+      yield dateutil.parser.parse(commit['committedDate'])
+    cursor = _getin(history, 'pageInfo', 'endCursor')
+    has_next_page = _getin(history, 'pageInfo', 'hasNextPage')
 
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
 
+def _pagination_clauses(first=None, after=None):
+  result = []
+  if first is not None: result.append(f'first: {first}')
+  if after is not None: result.append(f'after: "{after}"')
+  return result
+
 def _search_clause(language, first=None, after=None):
-  c1 = f', first: {first}' if first is not None else ''
-  c2 = f', after: "{after}"' if after is not None else ''
-  return fr'search(query: "language:{language} size:>=1000", type: REPOSITORY {c1} {c2})'
+  extra = ''.join(', ' + c for c in _pagination_clauses(first, after))
+  return fr'search(query: "language:{language} size:>=1000", type: REPOSITORY {extra})'
 
 def _query(query):
   return requests.post(
