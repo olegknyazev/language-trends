@@ -27,6 +27,9 @@ class GitHub_Test(TestCase):
     ]
     returned_repos = list(github.fetch_repos('clojure'))
     self.assertEqual(repos, returned_repos)
+    self.assertNotIn('after:', requests.post.call_args_list[0][1]['json']['query'])
+    self.assertIn('after: "c1"', requests.post.call_args_list[1][1]['json']['query'])
+    self.assertIn('after: "c2"', requests.post.call_args_list[2][1]['json']['query'])
 
   def _repo_page(self, repos, end_cursor='', has_next_page=False):
     return {
