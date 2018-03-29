@@ -21,7 +21,7 @@ def fetch_repos(language):
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = _query(queries.format_repos_query(language, cursor))
+    result = _query(queries.repos(language, cursor=cursor))
     search = _getin(result, 'data', 'search')
     nodes = _getin(search, 'nodes')
     for node in nodes:
@@ -36,7 +36,7 @@ def fetch_commits(repo_id, since=None):
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = _query(queries.format_commits_query(repo_id, since=since, cursor=cursor))
+    result = _query(queries.commits(repo_id, since=since, cursor=cursor))
     history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history')
     for commit in history['nodes']:
       yield dateutil.parser.parse(commit['committedDate'])
