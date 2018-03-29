@@ -13,21 +13,21 @@ def repo_count(language):
 
 REPOS_BASE_PATH = ['data', 'search']
 
-def repos(language, cursor=None):
+def repos(language, fields, cursor=None):
   return string.Template(r'''{
       $search {
         nodes {
           ... on Repository {
-            id
-            name }}
+            $fields }}
         pageInfo {
           endCursor
           hasNextPage }}}''').substitute(
+            fields=' '.join(fields),
             search=_search_clause(language, first=PAGE_SIZE, after=cursor))
 
 COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target', 'history']
 
-def commits(repo_id, since=None, cursor=None):
+def commits(repo_id, fields, since=None, cursor=None):
   history_args = {}
   if since is not None:
     if isinstance(since, datetime):
@@ -42,11 +42,12 @@ def commits(repo_id, since=None, cursor=None):
               ... on Commit {
                 history($history_args) {
                   nodes {
-                    committedDate }
+                    $fields }
                   pageInfo {
                     endCursor
                     hasNextPage }}}}}}}}''').substitute(
                       id=repo_id,
+                      fields=' '.join(fields),
                       history_args=_join_args(history_args))
 
 def _pagination_args(first=None, after=None):

@@ -16,7 +16,7 @@ def repo_count(language):
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
   pages = _fetch_paginated(
-    lambda c: queries.repos(language, cursor=c),
+    lambda c: queries.repos(language, ['id', 'name'], cursor=c),
     [*queries.REPOS_BASE_PATH, 'pageInfo'])
   for page in pages:
     for node in _getin(page, *queries.REPOS_BASE_PATH, 'nodes'):
@@ -27,7 +27,7 @@ def fetch_commits(repo_id, since=None):
   from the most recent one.
   """
   pages = _fetch_paginated(
-    lambda c: queries.commits(repo_id, since=since, cursor=c),
+    lambda c: queries.commits(repo_id, ['committedDate'], since=since, cursor=c),
     [*queries.COMMITS_BASE_PATH, 'pageInfo'])
   for page in pages:
     for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
