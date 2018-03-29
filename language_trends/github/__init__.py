@@ -5,6 +5,8 @@ import dateutil.parser
 import string
 import datetime
 
+from . import queries
+
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
 PAGE_SIZE = 100
@@ -13,46 +15,15 @@ def repo_count(language):
   result = _query(string.Template(r'''{
       $search {
         repositoryCount
-      }}''').substitute(search=search_clause(language)))
+      }}''').substitute(search=queries.search_clause(language)))
   return _getin(result, 'data', 'search', 'repositoryCount')
-
-def pagination_params(first=None, after=None):
-  result = {}
-  if first is not None: result['first'] = first
-  if after is not None: result['after'] = f'"{after}"'
-  return result
-
-def search_params(language):
-  return {
-    'query': f'"language:{language} size:>=10000"',
-    'type': 'REPOSITORY'}
-
-def join_params(**params): return ', '.join(f'{k}: {v}' for k, v in params.items())
-
-def search_clause(language, first=None, after=None):
-  params = {}
-  params.update(search_params(language))
-  params.update(pagination_params(first, after))
-  return f'search ({join_params(**params)})'
-
-def format_repos_query(language, cursor=None):
-  return string.Template(r'''{
-      $search {
-        nodes {
-          ... on Repository {
-            id
-            name }}
-        pageInfo {
-          endCursor
-          hasNextPage }}}''').substitute(
-            search=search_clause(language, first=PAGE_SIZE, after=cursor))
 
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = _query(format_repos_query(language, cursor))
+    result = _query(queries.format_repos_query(language, cursor))
     search = _getin(result, 'data', 'search')
     nodes = _getin(search, 'nodes')
     for node in nodes:
