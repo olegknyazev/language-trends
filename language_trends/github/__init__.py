@@ -18,30 +18,33 @@ def repo_count(language):
 
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
-  cursor = None
-  has_next_page = True
-  while has_next_page:
-    result = _query(queries.repos(language, cursor=cursor))
-    search = _getin(result, 'data', 'search')
-    nodes = _getin(search, 'nodes')
-    for node in nodes:
+  pages = _fetch_paginated(
+    lambda c: queries.repos(language, cursor=c),
+    ['data', 'search', 'pageInfo'])
+  for page in pages:
+    for node in _getin(page, 'data', 'search', 'nodes'):
       yield node['id'], node['name']
-    cursor = _getin(search, 'pageInfo', 'endCursor')
-    has_next_page = _getin(search, 'pageInfo', 'hasNextPage')
 
 def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
+  history_path = ['data', 'node', 'defaultBranchRef', 'target', 'history']
+  pages = _fetch_paginated(
+    lambda c: queries.commits(repo_id, since=since, cursor=c),
+    [*history_path, 'pageInfo'])
+  for page in pages:
+    for commit in _getin(page, *history_path, 'nodes'):
+      yield dateutil.parser.parse(commit['committedDate'])
+
+def _fetch_paginated(make_query, page_info_path):
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = _query(queries.commits(repo_id, since=since, cursor=cursor))
-    history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history')
-    for commit in history['nodes']:
-      yield dateutil.parser.parse(commit['committedDate'])
-    cursor = _getin(history, 'pageInfo', 'endCursor')
-    has_next_page = _getin(history, 'pageInfo', 'hasNextPage')
+    result = _query(make_query(cursor))
+    yield result
+    cursor = _getin(result, *page_info_path, 'endCursor')
+    has_next_page = _getin(result, *page_info_path, 'hasNextPage')
 
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
