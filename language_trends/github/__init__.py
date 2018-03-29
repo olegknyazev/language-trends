@@ -10,31 +10,27 @@ AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
 
 def repo_count(language):
-  result = _query(string.Template(r'''{
-      $search {
-        repositoryCount
-      }}''').substitute(search=queries.search_clause(language)))
-  return _getin(result, 'data', 'search', 'repositoryCount')
+  result = _query(queries.repo_count(language))
+  return _getin(result, *queries.REPO_COUNT_PATH)
 
 def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
   pages = _fetch_paginated(
     lambda c: queries.repos(language, cursor=c),
-    ['data', 'search', 'pageInfo'])
+    [*queries.REPOS_BASE_PATH, 'pageInfo'])
   for page in pages:
-    for node in _getin(page, 'data', 'search', 'nodes'):
+    for node in _getin(page, *queries.REPOS_BASE_PATH, 'nodes'):
       yield node['id'], node['name']
 
 def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
-  history_path = ['data', 'node', 'defaultBranchRef', 'target', 'history']
   pages = _fetch_paginated(
     lambda c: queries.commits(repo_id, since=since, cursor=c),
-    [*history_path, 'pageInfo'])
+    [*queries.COMMITS_BASE_PATH, 'pageInfo'])
   for page in pages:
-    for commit in _getin(page, *history_path, 'nodes'):
+    for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
       yield dateutil.parser.parse(commit['committedDate'])
 
 def _fetch_paginated(make_query, page_info_path):

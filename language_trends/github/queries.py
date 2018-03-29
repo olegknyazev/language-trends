@@ -3,11 +3,15 @@ from datetime import datetime
 
 PAGE_SIZE = 100
 
-def search_clause(language, first=None, after=None):
-  args = {}
-  args.update(_search_args(language))
-  args.update(_pagination_args(first, after))
-  return f'search ({_join_args(args)})'
+REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
+
+def repo_count(language):
+  return string.Template(r'''{
+      $search {
+        repositoryCount
+      }}''').substitute(search=_search_clause(language))
+
+REPOS_BASE_PATH = ['data', 'search']
 
 def repos(language, cursor=None):
   return string.Template(r'''{
@@ -19,7 +23,9 @@ def repos(language, cursor=None):
         pageInfo {
           endCursor
           hasNextPage }}}''').substitute(
-            search=search_clause(language, first=PAGE_SIZE, after=cursor))
+            search=_search_clause(language, first=PAGE_SIZE, after=cursor))
+
+COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target', 'history']
 
 def commits(repo_id, since=None, cursor=None):
   history_args = {}
@@ -48,6 +54,12 @@ def _pagination_args(first=None, after=None):
   if first is not None: result['first'] = first
   if after is not None: result['after'] = f'"{after}"'
   return result
+
+def _search_clause(language, first=None, after=None):
+  args = {}
+  args.update(_search_args(language))
+  args.update(_pagination_args(first, after))
+  return f'search ({_join_args(args)})'
 
 def _search_args(language):
   return {
