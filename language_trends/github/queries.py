@@ -1,4 +1,5 @@
 import string
+from datetime import datetime
 
 PAGE_SIZE = 100
 
@@ -32,3 +33,25 @@ def format_repos_query(language, cursor=None):
           endCursor
           hasNextPage }}}''').substitute(
             search=search_clause(language, first=PAGE_SIZE, after=cursor))
+
+def format_commits_query(repo_id, since=None, cursor=None):
+  history_args = {}
+  if since is not None:
+    if isinstance(since, datetime):
+      since = since.isoformat()
+    history_args['since'] = f'"{since}"'
+  history_args.update(pagination_params(first=PAGE_SIZE, after=cursor))
+  return string.Template(r'''{
+      node(id: "$id") {
+        ... on Repository {
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history($history_args) {
+                  nodes {
+                    committedDate }
+                  pageInfo {
+                    endCursor
+                    hasNextPage }}}}}}}}''').substitute(
+                      id=repo_id,
+                      history_args=join_params(**history_args))

@@ -3,13 +3,11 @@ import os.path
 import functools
 import dateutil.parser
 import string
-import datetime
 
 from . import queries
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
-PAGE_SIZE = 100
 
 def repo_count(language):
   result = _query(string.Template(r'''{
@@ -35,26 +33,10 @@ def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
-  since = since.isoformat() if isinstance(since, datetime.datetime) else since
   cursor = None
   has_next_page = True
-  since_clause = f', since: "{since}"' if since is not None else ''
   while has_next_page:
-    result = _query(string.Template(r'''{
-      node(id: "$id") {
-        ... on Repository {
-          defaultBranchRef {
-            target {
-              ... on Commit {
-                history($page_clause $since_clause) {
-                  nodes {
-                    committedDate }
-                  pageInfo {
-                    endCursor
-                    hasNextPage }}}}}}}}''').substitute(
-                      id=repo_id,
-                      since_clause=since_clause,
-                      page_clause=', '.join(_pagination_clauses(PAGE_SIZE, cursor))))
+    result = _query(queries.format_commits_query(repo_id, since=since, cursor=cursor))
     history = _getin(result, 'data', 'node', 'defaultBranchRef', 'target', 'history')
     for commit in history['nodes']:
       yield dateutil.parser.parse(commit['committedDate'])
