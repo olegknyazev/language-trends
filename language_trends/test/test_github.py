@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock
 
 from .. import github
 
-class GitHub_Test(TestCase):
+class github_Test(TestCase):
   @patch('language_trends.github.requests')
   def test_returns_whatever_server_returns(self, requests):
     repos = [('prj01', 'Project-01'), ('prj02', 'Project-02')]
