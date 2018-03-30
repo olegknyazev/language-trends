@@ -1,4 +1,5 @@
-import requests
+import aiohttp
+import asyncio
 import os.path
 import functools
 import dateutil.parser
@@ -9,35 +10,38 @@ from . import queries
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
 
-def repo_count(language):
-  result = _query(queries.repo_count(language))
-  return _getin(result, *queries.REPO_COUNT_PATH)
+async def repo_count(language):
+  async with aiohttp.ClientSession() as http:
+    result = await _query(http, queries.repo_count(language))
+    return _getin(result, *queries.REPO_COUNT_PATH)
 
-def fetch_repos(language):
+async def fetch_repos(language):
   """Yields all the repositories in the form (id, name) for the provided language."""
-  pages = _fetch_paginated(
-    lambda c: queries.repos(language, ['id', 'name'], cursor=c),
-    [*queries.REPOS_BASE_PATH, 'pageInfo'])
-  for page in pages:
-    for node in _getin(page, *queries.REPOS_BASE_PATH, 'nodes'):
-      yield node['id'], node['name']
+  async with aiohttp.ClientSession() as http:
+    pages = _fetch_paginated(http,
+      lambda c: queries.repos(language, ['id', 'name'], cursor=c),
+      [*queries.REPOS_BASE_PATH, 'pageInfo'])
+    async for page in pages:
+      for node in _getin(page, *queries.REPOS_BASE_PATH, 'nodes'):
+        yield node['id'], node['name']
 
-def fetch_commits(repo_id, since=None):
+async def fetch_commits(repo_id, since=None):
   """Yields all the commits from the repository specified by repo_id, starting
   from the most recent one.
   """
-  pages = _fetch_paginated(
-    lambda c: queries.commits(repo_id, ['committedDate'], since=since, cursor=c),
-    [*queries.COMMITS_BASE_PATH, 'pageInfo'])
-  for page in pages:
-    for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
-      yield dateutil.parser.parse(commit['committedDate'])
+  async with aiohttp.ClientSession() as http:
+    pages = _fetch_paginated(http,
+      lambda c: queries.commits(repo_id, ['committedDate'], since=since, cursor=c),
+      [*queries.COMMITS_BASE_PATH, 'pageInfo'])
+    async for page in pages:
+      for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
+        yield dateutil.parser.parse(commit['committedDate'])
 
-def _fetch_paginated(make_query, page_info_path):
+async def _fetch_paginated(http, make_query, page_info_path):
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = _query(make_query(cursor))
+    result = await _query(http, make_query(cursor))
     yield result
     cursor = _getin(result, *page_info_path, 'endCursor')
     has_next_page = _getin(result, *page_info_path, 'hasNextPage')
@@ -45,12 +49,13 @@ def _fetch_paginated(make_query, page_info_path):
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
 
-def _query(query):
-  return requests.post(
-      SERVICE_END_POINT,
-      json = {'query': query},
-      headers = _auth_headers()
-    ).json()
+async def _query(http, query):
+  async with http.post(
+        SERVICE_END_POINT,
+        json = {'query': query},
+        headers = _auth_headers()
+      ) as resp:
+    return await resp.json()
 
 _cached_auth_token = None
 
