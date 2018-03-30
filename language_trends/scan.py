@@ -6,10 +6,11 @@ from . import data
 
 MAX_PARALLEL_REPOS = 4
 
-async def _should_update(language):
-  scanned = data.repo_count(language)
-  total = await github.repo_count(language)
-  return scanned < total
+def update(language='clojure', log=None):
+  loop = asyncio.get_event_loop()
+  loop.run_until_complete(
+    loop.create_task(
+      _update_impl(language=language, log=log)))
 
 async def _update_impl(language='clojure', log=None):
   if await _should_update(language):
@@ -17,6 +18,11 @@ async def _update_impl(language='clojure', log=None):
       github.fetch_repos(language),
       lambda r: _update_repo_commits(*r, language, log=log),
       max_parallelism=MAX_PARALLEL_REPOS)
+
+async def _should_update(language):
+  scanned = data.repo_count(language)
+  total = await github.repo_count(language)
+  return scanned < total
 
 async def _update_repo_commits(repo_id, repo_name, language, log=None):
   last_commit = data.last_commit_date(repo_id)
@@ -43,12 +49,6 @@ async def _for_each_parallel(aiter, process, max_parallelism):
       finished = await next(asyncio.as_completed(tasks.values()))
       tasks.pop(finished)
   await asyncio.gather(*tasks.values())
-
-def update(language='clojure', log=None):
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(
-    loop.create_task(
-      _update_impl(language=language, log=log)))
 
 if __name__ == '__main__':
   update(log=print)

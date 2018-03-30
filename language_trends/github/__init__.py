@@ -57,6 +57,14 @@ async def _query(http, query):
       ) as resp:
     return await resp.json()
 
+def _auth_headers():
+  token = _auth_token()
+  if not token:
+    raise Exception(
+      f"Authorization token isn't found." +
+      f"Be sure that file {AUTH_TOKEN_FILENAME} exists.")
+  return {'Authorization': 'bearer ' + token}
+
 _cached_auth_token = None
 
 def _auth_token():
@@ -66,11 +74,3 @@ def _auth_token():
       with open(AUTH_TOKEN_FILENAME) as f:
         _cached_auth_token = f.read().strip()
   return _cached_auth_token
-
-def _auth_headers():
-  token = _auth_token()
-  if not token:
-    raise Exception(
-      f"Authorization token isn't found." +
-      f"Be sure that file {AUTH_TOKEN_FILENAME} exists.")
-  return {'Authorization': 'bearer ' + token}
