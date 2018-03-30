@@ -14,7 +14,7 @@ def store_repo(id, name, language):
 def store_commits(repo_id, date, commits_count):
   with _transaction() as c:
     c.execute(
-     '''INSERT INTO commits_per_day VALUES (%s, %s, %s)
+     '''INSERT INTO commits_by_repo VALUES (%s, %s, %s)
           ON CONFLICT (repository_id, date) DO UPDATE
             SET commit_count = EXCLUDED.commit_count;''',
       (repo_id, date, commits_count))
@@ -22,7 +22,7 @@ def store_commits(repo_id, date, commits_count):
 def store_commits(repo_id, data):
   with _transaction() as c:
     access.execute_values(c,
-     '''INSERT INTO commits_per_day VALUES %s
+     '''INSERT INTO commits_by_repo VALUES %s
           ON CONFLICT (repository_id, date) DO UPDATE
             SET commit_count = EXCLUDED.commit_count;''',
       ((repo_id, date, commits) for date, commits in data))
@@ -34,14 +34,14 @@ def repo_count(language):
 
 def last_commit_date(repo_id):
   with _transaction() as c:
-    c.execute('SELECT MAX(date) FROM commits_per_day WHERE repository_id = %s', (repo_id,))
+    c.execute('SELECT MAX(date) FROM commits_by_repo WHERE repository_id = %s', (repo_id,))
     return c.fetchone()[0]
 
 def commits_by_language(language):
   with _transaction() as c:
     c.execute(
      '''SELECT c.date, SUM(c.commit_count)
-          FROM commits_per_day c JOIN repositories r ON c.repository_id = r.id
+          FROM commits_by_repo c JOIN repositories r ON c.repository_id = r.id
           WHERE r.language = %s
           GROUP BY c.date
           ORDER BY c.date;''',
