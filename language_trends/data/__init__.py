@@ -27,6 +27,12 @@ def store_commits(repo_id, data):
             SET commit_count = EXCLUDED.commit_count;''',
       ((repo_id, date, commits) for date, commits in data))
 
+def update_aggregated_data():
+  with _transaction() as c:
+    c.execute('''
+      REFRESH MATERIALIZED VIEW commit_by_language;
+      REFRESH MATERIALIZED VIEW commit_by_language_monthly;''')
+
 def repo_count(language):
   with _transaction() as c:
     c.execute('SELECT COUNT(*) FROM repositories WHERE language = %s;', (language,))

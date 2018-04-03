@@ -7,17 +7,15 @@ from . import data
 
 MAX_PARALLEL_REPOS = 4
 
-def update(language='clojure', log=None):
-  try:
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(
-      loop.create_task(
-        _update_impl(language=language, log=log)))
-    loop.close()
-  except KeyboardInterrupt:
-    pass
+def update_language(language, log=None):
+  loop = asyncio.get_event_loop()
+  loop.run_until_complete(_update_impl(language, log=log))
+  loop.close()
 
-async def _update_impl(language='clojure', log=None):
+def update_aggregated_data():
+  data.update_aggregated_data()
+
+async def _update_impl(language, log=None):
   if await _should_update(language):
     await for_each_parallel(
       github.fetch_repos(language),
@@ -43,5 +41,12 @@ async def _update_repo_commits(repo_id, repo_name, language, log=None):
   if log is not None:
     log(f'Processed {repo_name}: {len(records)} days, {sum(r[1] for r in records)} commits')
 
+def main():
+  try:
+    update_language('clojure', log=print)
+  except KeyboardInterrupt:
+    pass
+  update_aggregated_data()
+
 if __name__ == '__main__':
-  update(log=print)
+  main()
