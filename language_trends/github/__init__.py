@@ -34,20 +34,33 @@ async def fetch_commits(repo_id, since=None):
       lambda c: queries.commits(repo_id, ['committedDate'], since=since, cursor=c),
       [*queries.COMMITS_BASE_PATH, 'pageInfo'])
     async for page in pages:
-      for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
-        yield dateutil.parser.parse(commit['committedDate'])
+      try:
+        for commit in _getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
+          yield dateutil.parser.parse(commit['committedDate'])
+      except KeyError:
+        print(page)
+        raise
 
 async def _fetch_paginated(http, make_query, page_info_path):
   cursor = None
   has_next_page = True
   while has_next_page:
-    result = await _query(http, make_query(cursor))
+    while True:
+      result = await _query(http, make_query(cursor))
+      if not _is_abuse_report(result):
+        break
+      print('Abuse detected, sleep') # TODO log?
+      await asyncio.sleep(5)
     yield result
     cursor = _getin(result, *page_info_path, 'endCursor')
     has_next_page = _getin(result, *page_info_path, 'hasNextPage')
 
 def _getin(obj, *path):
   return functools.reduce(lambda obj, seg: obj[seg], path, obj)
+
+def _is_abuse_report(result):
+  error_message = result.get('message', '')
+  return 'abuse' in error_message
 
 async def _query(http, query):
   async with http.post(
