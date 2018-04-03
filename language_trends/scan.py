@@ -1,6 +1,7 @@
 import asyncio
 from itertools import groupby
 from datetime import datetime, time
+from .asyncutil import for_each_parallel
 from . import github
 from . import data
 
@@ -18,7 +19,7 @@ def update(language='clojure', log=None):
 
 async def _update_impl(language='clojure', log=None):
   if await _should_update(language):
-    await _for_each_parallel(
+    await for_each_parallel(
       github.fetch_repos(language),
       lambda r: _update_repo_commits(*r, language, log=log),
       max_parallelism=MAX_PARALLEL_REPOS)
@@ -41,18 +42,6 @@ async def _update_repo_commits(repo_id, repo_name, language, log=None):
   data.store_commits(repo_id, records)
   if log is not None:
     log(f'Processed {repo_name}: {len(records)} days, {sum(r[1] for r in records)} commits')
-
-async def _for_each_parallel(aiter, process, max_parallelism):
-  tasks = {}
-  async def execute(k):
-    await process(k)
-    return k
-  async for x in aiter:
-    tasks[x] = asyncio.get_event_loop().create_task(execute(x))
-    if len(tasks) >= max_parallelism:
-      finished = await next(asyncio.as_completed(tasks.values()))
-      tasks.pop(finished)
-  await asyncio.gather(*tasks.values())
 
 if __name__ == '__main__':
   update(log=print)
