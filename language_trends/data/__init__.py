@@ -43,16 +43,20 @@ def last_commit_date(repo_id):
     c.execute('SELECT MAX(date) FROM commits_by_repo WHERE repository_id = %s', (repo_id,))
     return c.fetchone()[0]
 
-def commits_by_language(language):
+def commits_by_language(language, aggregate='DAY'):
   with _transaction() as c:
-    c.execute(
-     '''SELECT c.date, SUM(c.commit_count)
-          FROM commits_by_repo c JOIN repositories r ON c.repository_id = r.id
-          WHERE r.language = %s
-          GROUP BY c.date
-          ORDER BY c.date;''',
+    c.execute(f'''
+      SELECT date, commit_count
+        FROM {_COMMIT_AGGREGATION_TABLE[aggregate]}
+        WHERE language = %s
+        ORDER BY date;''',
       (language,))
-    return list(c)
+    return [(x[0], int(x[1])) for x in c]
+
+_COMMIT_AGGREGATION_TABLE = {
+  'DAY': 'commit_by_language',
+  'MONTH': 'commit_by_language_monthly'
+  }
 
 _migrated = False
 
