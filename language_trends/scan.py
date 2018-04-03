@@ -7,10 +7,14 @@ from . import data
 MAX_PARALLEL_REPOS = 4
 
 def update(language='clojure', log=None):
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(
-    loop.create_task(
-      _update_impl(language=language, log=log)))
+  try:
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(
+      loop.create_task(
+        _update_impl(language=language, log=log)))
+    loop.close()
+  except KeyboardInterrupt:
+    pass
 
 async def _update_impl(language='clojure', log=None):
   if await _should_update(language):
