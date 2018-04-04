@@ -39,14 +39,27 @@ def repo_count(language):
     c.execute('SELECT COUNT(*) FROM repositories WHERE language = %s;', (language,))
     return c.fetchone()[0]
 
-def language_stats():
+def language_stats(languages):
+  """Returns a list containing (lang, repo_count, commit_count) for each lang from
+  the passed languages Iterable.
+  """
+  report = []
   with _transaction() as c:
-    c.execute('''
-      SELECT r.language, COUNT(c.repository_id), SUM(c.commit_count)
-        FROM commits_by_repo c JOIN repositories r ON c.repository_id = r.id
-        GROUP BY r.language;
-      ''')
-    return list(c)
+    for lang in languages:
+      c.execute('''
+        SELECT DISTINCT COUNT(*)
+          FROM repositories
+          WHERE language = %s;
+        ''', (lang,))
+      repo_count = c.fetchone()[0] or 0
+      c.execute('''
+        SELECT SUM(c.commit_count)
+          FROM commits_by_repo c JOIN repositories r ON c.repository_id = r.id
+          WHERE r.language = %s;
+        ''', (lang,))
+      commit_count = c.fetchone()[0] or 0
+      report.append((lang, repo_count, commit_count))
+    return report
 
 def last_commit_date(repo_id):
   with _transaction() as c:
