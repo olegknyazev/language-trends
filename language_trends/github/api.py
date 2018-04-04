@@ -16,6 +16,7 @@ class Session:
     await self._aio_session.__aexit__(exc_type, exc_val, exc_tb)
 
   async def query(self, query):
+    """Sends a query to GitHub GraphQL API and returns resulted JSON."""
     async with self._aio_session.post(
           SERVICE_END_POINT,
           json = {'query': query},
@@ -24,6 +25,20 @@ class Session:
       return await resp.json()
 
   async def fetch_paginated(make_query, page_info_path):
+    """Fetches content using GraphQL pagination.
+
+      make_query
+        Callable producing a query string. Accepts a single argument - cursor,
+        which is None during the first call. Resulted query should contain
+        a pageInfo node.
+
+      page_info_path
+        An Iterable containing path to the node 'pageInfo { endCursor hasNextPage }'.
+
+    More info:
+      http://graphql.org/learn/pagination/
+
+    """
     cursor = None
     has_next_page = True
     while has_next_page:

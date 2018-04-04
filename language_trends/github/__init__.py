@@ -5,12 +5,13 @@ from . import queries
 from . import api
 
 async def repo_count(language):
+  """Returns number of repositories by the specified language."""
   async with api.Session() as session:
     result = await session.query(queries.repo_count(language))
     return _getin(result, *queries.REPO_COUNT_PATH)
 
 async def fetch_repos(language):
-  """Yields all the repositories in the form (id, name) for the provided language."""
+  """Yields all the repositories in the form (id, name) for the specified language."""
   async with api.Session() as session:
     pages = session.fetch_paginated(
       lambda c: queries.repos(language, ['id', 'name'], cursor=c),
