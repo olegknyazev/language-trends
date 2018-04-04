@@ -1,7 +1,7 @@
+from contextlib import contextmanager
+
 import psycopg2 as db
 import psycopg2.extras
-from contextlib import contextmanager
-from .migrations import migrate
 
 CONNECTION_PARAMS = {
   'host': 'localhost',

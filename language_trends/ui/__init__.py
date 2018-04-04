@@ -1,7 +1,9 @@
 from datetime import date
+
 from flask import Flask, render_template
 from flask.json import JSONEncoder, dumps
-from .. import data
+
+from language_trends import data
 
 class CustomJSONEncoder(JSONEncoder):
   def default(self, obj):
