@@ -4,19 +4,19 @@ from . import access
 
 def store_repo(id, name, language):
   with _transaction() as c:
-    c.execute(
-     '''INSERT INTO repositories VALUES (%s, %s, %s)
-          ON CONFLICT (id) DO UPDATE
-            SET name = EXCLUDED.name,
-                language = EXCLUDED.language;''',
+    c.execute('''
+      INSERT INTO repositories VALUES (%s, %s, %s)
+        ON CONFLICT (id) DO UPDATE
+          SET name = EXCLUDED.name,
+              language = EXCLUDED.language;''',
       (id, name, language))
 
 def store_commits(repo_id, date, commits_count):
   with _transaction() as c:
-    c.execute(
-     '''INSERT INTO commits_by_repo VALUES (%s, %s, %s)
-          ON CONFLICT (repository_id, date) DO UPDATE
-            SET commit_count = EXCLUDED.commit_count;''',
+    c.execute('''
+      INSERT INTO commits_by_repo VALUES (%s, %s, %s)
+        ON CONFLICT (repository_id, date) DO UPDATE
+          SET commit_count = EXCLUDED.commit_count;''',
       (repo_id, date, commits_count))
 
 def store_commits(repo_id, data):
