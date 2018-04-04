@@ -1,8 +1,9 @@
 import asyncio
 from itertools import groupby
 from datetime import datetime, time
+
 from .asyncutil import for_each_parallel
-from . import github
+from .github import Session as GitHubSession
 from . import data
 
 MAX_PARALLEL_REPOS = 4
@@ -16,18 +17,19 @@ def update_aggregated_data():
   data.update_aggregated_data()
 
 async def _update_impl(language, log=None):
-  if await _should_update(language):
-    await for_each_parallel(
-      github.fetch_repos(language),
-      lambda r: _update_repo_commits(*r, language, log=log),
-      max_parallelism=MAX_PARALLEL_REPOS)
+  async with GitHubSession() as github:
+    if await _should_update(github, language):
+      await for_each_parallel(
+        github.fetch_repos(language),
+        lambda r: _update_repo_commits(github, *r, language, log=log),
+        max_parallelism=MAX_PARALLEL_REPOS)
 
-async def _should_update(language):
+async def _should_update(github, language):
   scanned = data.repo_count(language)
   total = await github.repo_count(language)
   return scanned < total
 
-async def _update_repo_commits(repo_id, repo_name, language, log=None):
+async def _update_repo_commits(github, repo_id, repo_name, language, log=None):
   last_commit = data.last_commit_date(repo_id)
   if last_commit is None:
     data.store_repo(repo_id, repo_name, language)

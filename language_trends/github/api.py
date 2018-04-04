@@ -1,5 +1,9 @@
-import aiohttp
+import asyncio
 import os.path
+
+import aiohttp
+
+from language_trends.collutil import getin
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
@@ -24,7 +28,7 @@ class Session:
         ) as resp:
       return await resp.json()
 
-  async def fetch_paginated(make_query, page_info_path):
+  async def fetch_paginated(self, make_query, page_info_path):
     """Fetches content using GraphQL pagination.
 
       make_query
@@ -49,8 +53,8 @@ class Session:
         print('Abuse detected, sleep') # TODO log?
         await asyncio.sleep(5)
       yield result
-      cursor = _getin(result, *page_info_path, 'endCursor')
-      has_next_page = _getin(result, *page_info_path, 'hasNextPage')
+      cursor = getin(result, *page_info_path, 'endCursor')
+      has_next_page = getin(result, *page_info_path, 'hasNextPage')
 
 
 def _is_abuse_report(result):
