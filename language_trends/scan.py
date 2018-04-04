@@ -4,9 +4,16 @@ from datetime import datetime, time
 
 from .asyncutil import for_each_parallel
 from .github import Session as GitHubSession
+from .languages import ALL_LANGUAGES
 from . import data
 
 MAX_PARALLEL_REPOS = 4
+
+def update_all(log=None):
+  loop = asyncio.get_event_loop()
+  for lang in ALL_LANGUAGES:
+    loop.run_until_complete(_update_impl(lang, log=log))
+  loop.close()
 
 def update_language(language, log=None):
   loop = asyncio.get_event_loop()
@@ -45,7 +52,7 @@ async def _update_repo_commits(github, repo_id, repo_name, language, log=None):
 
 def main():
   try:
-    update_language('clojure', log=print)
+    update_all(log=print)
   except KeyboardInterrupt:
     pass
   update_aggregated_data()
