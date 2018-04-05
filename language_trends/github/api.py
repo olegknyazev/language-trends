@@ -48,18 +48,40 @@ class Session:
     while has_next_page:
       while True:
         result = await self.query(make_query(cursor))
-        if not _is_abuse_report(result):
+        error = _analyze_error(result)
+        if error:
+          await _process_error(error)
+        else:
           break
-        print('Abuse detected, sleep') # TODO log?
-        await asyncio.sleep(5)
       yield result
       cursor = getin(result, *page_info_path, 'endCursor')
       has_next_page = getin(result, *page_info_path, 'hasNextPage')
 
+async def _process_error(error):
+  timeout = _timeout_for(error)
+  # TODO use log
+  print('Error occured: {}. Waiting for {} seconds...'.format(error, timeout))
+  await asyncio.sleep(timeout)
 
-def _is_abuse_report(result):
-  error_message = result.get('message', '')
-  return 'abuse' in error_message
+def _timeout_for(error):
+  if error == 'ABUSE':
+    return 20
+  elif error == 'RATE_LIMITED':
+    return 10 * 60 # 10 minutes
+  elif error == 'UNKNOWN_ERROR':
+    return 5
+  raise Exception('Unknown error: ' + str(error))
+
+def _analyze_error(result):
+  errors = result.get('errors', None)
+  if errors:
+    error_types = [e.get('type', None) for e in errors]
+    if 'RATE_LIMITED' in error_types:
+      return 'RATE_LIMITED'
+    return 'UNKNOWN_ERROR'
+  if 'abuse' in result.get('message', ''):
+    return 'ABUSE'
+  return None
 
 def _auth_headers():
   token = _auth_token()
