@@ -20,6 +20,15 @@ def update_language(language, log=None):
   loop.run_until_complete(_update_impl(language, log=log))
   loop.close()
 
+def update_language_2(language):
+  loop = asyncio.get_event_loop()
+  loop.run_until_complete(_update_impl_2(language))
+  loop.close()
+
+async def _update_impl_2(language, log=None):
+  async with GitHubSession() as github:
+    await github.fetch_repo_commits(language)
+
 def update_aggregated_data():
   data.update_aggregated_data()
 
@@ -52,10 +61,10 @@ async def _update_repo_commits(github, repo_id, repo_name, language, log=None):
 
 def main():
   try:
-    update_all(log=print)
+    update_language_2('clojure')
   except KeyboardInterrupt:
     pass
-  update_aggregated_data()
+  # update_aggregated_data()
 
 if __name__ == '__main__':
   main()

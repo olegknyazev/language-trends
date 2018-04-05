@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import dateutil.parser
 
 from language_trends.collutil import getin
@@ -15,9 +17,9 @@ class Session:
   async def __aexit__(self, exc_type, exc_val, exc_tb):
     await self._api_session.__aexit__(exc_type, exc_val, exc_tb)
 
-  async def repo_count(self, language):
+  async def repo_count(self, language, **query_args):
     """Returns number of repositories by the specified language."""
-    result = await self._api_session.query(queries.repo_count(language))
+    result = await self._api_session.query(queries.repo_count(language, **query_args))
     return getin(result, *queries.REPO_COUNT_PATH)
 
   async def fetch_repos(self, language):
@@ -39,3 +41,25 @@ class Session:
     async for page in pages:
       for commit in getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
         yield dateutil.parser.parse(commit['committedDate'])
+
+  async def fetch_repo_commits(self, language, since=None):
+    fetched = 0
+    async def impl(selector, start, end, offset=0):
+      nonlocal fetched
+      pad = ' ' * offset
+      count = await self.repo_count(language, **{selector: (start, end)})
+      print(pad + f'QUERY {selector}: {start}..{end} --> {count}')
+      if count < 100:
+        fetched += count
+      else:
+        mid = start + (end - start) / 2
+        await impl(selector, start, mid, offset + 1)
+        await impl(selector, mid, end, offset + 1)
+    if since is None:
+      await impl('created_range', _BEGIN_OF_TIME, _END_OF_TIME)
+    else:
+      await impl('pushed_range', since, _END_OF_TIME)
+    print(f'FETCHED {fetched}')
+
+_BEGIN_OF_TIME = datetime(2008, 1, 1)
+_END_OF_TIME = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
