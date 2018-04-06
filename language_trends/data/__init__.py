@@ -6,37 +6,28 @@ from . import access
 def store_repo(id, name, language):
   with _transaction() as c:
     c.execute('''
-      INSERT INTO repositories VALUES (%s, %s, %s)
+      INSERT INTO repos VALUES (%s, %s, %s)
         ON CONFLICT (id) DO UPDATE
           SET name = EXCLUDED.name,
-              language = EXCLUDED.language;''',
+              lang = EXCLUDED.lang;''',
       (id, name, language))
-
-def store_commits(repo_id, date, commits_count):
-  with _transaction() as c:
-    c.execute('''
-      INSERT INTO commits_by_repo VALUES (%s, %s, %s)
-        ON CONFLICT (repository_id, date) DO UPDATE
-          SET commit_count = EXCLUDED.commit_count;''',
-      (repo_id, date, commits_count))
 
 def store_commits(repo_id, data):
   with _transaction() as c:
     access.execute_values(c,
-     '''INSERT INTO commits_by_repo VALUES %s
-          ON CONFLICT (repository_id, date) DO UPDATE
-            SET commit_count = EXCLUDED.commit_count;''',
-      ((repo_id, date, commits) for date, commits in data))
+     '''INSERT INTO commits VALUES %s
+          ON CONFLICT (repo_id, date) DO UPDATE
+            SET commits_since_prev = EXCLUDED.commits_since_prev,
+                commits_total = EXCLUDED.commits_total;''',
+      ((repo_id, *cols) for cols in data))
 
 def update_aggregated_data():
   with _transaction() as c:
-    c.execute('''
-      REFRESH MATERIALIZED VIEW commit_by_language;
-      REFRESH MATERIALIZED VIEW commit_by_language_monthly;''')
+    c.execute('REFRESH MATERIALIZED VIEW commits_by_lang;')
 
 def repo_count(language):
   with _transaction() as c:
-    c.execute('SELECT COUNT(*) FROM repositories WHERE language = %s;', (language,))
+    c.execute('SELECT COUNT(*) FROM repos WHERE lang = %s;', (language,))
     return c.fetchone()[0]
 
 def language_stats(languages):
@@ -46,40 +37,26 @@ def language_stats(languages):
   report = []
   with _transaction() as c:
     for lang in languages:
-      c.execute('''
-        SELECT DISTINCT COUNT(*)
-          FROM repositories
-          WHERE language = %s;
-        ''', (lang,))
+      c.execute('SELECT DISTINCT COUNT(*) FROM repos WHERE lang = %s;', (lang,))
       repo_count = c.fetchone()[0] or 0
       c.execute('''
-        SELECT SUM(c.commit_count)
-          FROM commits_by_repo c JOIN repositories r ON c.repository_id = r.id
-          WHERE r.language = %s;
+        SELECT SUM(c.commits_since_prev)
+          FROM commits c JOIN repos r ON c.repo_id = r.id
+          WHERE r.lang = %s;
         ''', (lang,))
       commit_count = c.fetchone()[0] or 0
       report.append((lang, repo_count, commit_count))
     return report
 
-def last_commit_date(repo_id):
-  with _transaction() as c:
-    c.execute('SELECT MAX(date) FROM commits_by_repo WHERE repository_id = %s', (repo_id,))
-    return c.fetchone()[0]
-
-def commits_by_language(language, aggregate='DAY'):
+def commits_by_language(language):
   with _transaction() as c:
     c.execute(f'''
-      SELECT date, commit_count
-        FROM {_COMMIT_AGGREGATION_TABLE[aggregate]}
-        WHERE language = %s
+      SELECT date, commits_since_prev
+        FROM commits_by_lang
+        WHERE lang = %s
         ORDER BY date;''',
       (language,))
     return [(x[0], int(x[1])) for x in c]
-
-_COMMIT_AGGREGATION_TABLE = {
-  'DAY': 'commit_by_language',
-  'MONTH': 'commit_by_language_monthly'
-  }
 
 _migrated = False
 

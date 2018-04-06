@@ -1,5 +1,6 @@
 # Language Trends (this application)
 /auth_token.txt
+/.hypothesis
 
 # Python
 __pycache__

@@ -4,3 +4,5 @@ flask
 aiohttp
 cchardet
 aiodns
+hypothesis
+

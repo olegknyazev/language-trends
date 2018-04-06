@@ -1,71 +1,71 @@
 import string
-from datetime import datetime
+import re
+from datetime import date, time, datetime
 
-PAGE_SIZE = 100
+from language_trends.util import months
+
+MAX_PAGE_SIZE = 100
 
 REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
-
-def repo_count(language):
+def repo_count(language, **search_args):
   return string.Template(r'''{
       $search {
         repositoryCount
-      }}''').substitute(search=_search_clause(language))
+      }}''').substitute(search=_search_clause(language, **search_args))
 
-REPOS_BASE_PATH = ['data', 'search']
-
-def repos(language, fields, cursor=None):
+SEARCH_REPOS_BASE_PATH = ['data', 'search', 'nodes']
+def search_repos(language, repository_fields, **search_args):
   return string.Template(r'''{
       $search {
         nodes {
           ... on Repository {
-            $fields }}
-        pageInfo {
-          endCursor
-          hasNextPage }}}''').substitute(
-            fields=' '.join(fields),
-            search=_search_clause(language, first=PAGE_SIZE, after=cursor))
+            $repository_fields }}}}''').substitute(
+              search=_search_clause(language, **search_args),
+              repository_fields=' '.join(repository_fields))
 
-COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target', 'history']
-
-def commits(repo_id, fields, since=None, cursor=None):
-  history_args = {}
-  if since is not None:
-    if isinstance(since, datetime):
-      since = since.isoformat()
-    history_args['since'] = f'"{since}"'
-  history_args.update(_pagination_args(first=PAGE_SIZE, after=cursor))
+REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target']
+def repo_monthly_total_commits(repo_id, since, until):
   return string.Template(r'''{
-      node(id: "$id") {
+      node(id: "$repo_id") {
         ... on Repository {
           defaultBranchRef {
             target {
               ... on Commit {
-                history($history_args) {
-                  nodes {
-                    $fields }
-                  pageInfo {
-                    endCursor
-                    hasNextPage }}}}}}}}''').substitute(
-                      id=repo_id,
-                      fields=' '.join(fields),
-                      history_args=_join_args(history_args))
+                $history }}}}}}''').substitute(
+                  repo_id=repo_id,
+                  history=_history_clauses(since, until))
 
-def _pagination_args(first=None, after=None):
-  result = {}
-  if first is not None: result['first'] = first
-  if after is not None: result['after'] = f'"{after}"'
-  return result
+_ID_TO_MONTH_PATTERN = re.compile(r'_(\d{4})_(\d{1,2})')
 
-def _search_clause(language, first=None, after=None):
-  args = {}
-  args.update(_search_args(language))
-  args.update(_pagination_args(first, after))
+def month_id_to_date(month_id):
+  match = _ID_TO_MONTH_PATTERN.fullmatch(month_id)
+  return date(int(match.group(1)), int(match.group(2)), 1)
+
+def _history_clauses(since, until):
+  return '\n'.join(_commits_upto_clause(m) for m in months(since, until))
+
+def _commits_upto_clause(date):
+  return f'_{date.year}_{date.month}: history(until: "{_fmt_date(date)}") {{ totalCount }}'
+
+def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_range=None):
+  args = {'first': first}
+  args.update(_search_args(language, created_range=created_range, pushed_range=pushed_range))
   return f'search ({_join_args(args)})'
 
-def _search_args(language):
+def _search_args(language, *, created_range=None, pushed_range=None):
+  def _time_range_args(action, range):
+    return f'{action}:{_fmt_date(range[0])}..{_fmt_date(range[1])}' if range is not None else ''
+  created = _time_range_args('created', created_range)
+  pushed = _time_range_args('pushed', pushed_range)
   return {
-    'query': f'"language:{language} size:>=10000"',
+    'query': f'"language:{language} size:>=10000 {created} {pushed}"',
     'type': 'REPOSITORY'}
 
-def _join_args(args): return ', '.join(f'{k}: {v}' for k, v in args.items())
+def _join_args(args):
+  return ', '.join(f'{k}: {v}' for k, v in args.items())
+
+def _fmt_date(d):
+  if isinstance(d, date):
+    d = datetime.combine(d, time.min)
+  return d.isoformat() if isinstance(d, datetime) else d
 

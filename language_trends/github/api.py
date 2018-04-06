@@ -3,7 +3,7 @@ import os.path
 
 import aiohttp
 
-from language_trends.collutil import getin
+from language_trends.util import getin
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
@@ -11,6 +11,7 @@ SERVICE_END_POINT = 'https://api.github.com/graphql'
 class Session:
   def __init__(self):
     self._aio_session = aiohttp.ClientSession()
+    self.last_error = None
 
   async def __aenter__(self):
     await self._aio_session.__aenter__()
@@ -21,47 +22,21 @@ class Session:
 
   async def query(self, query):
     """Sends a query to GitHub GraphQL API and returns resulted JSON."""
-    async with self._aio_session.post(
-          SERVICE_END_POINT,
-          json = {'query': query},
-          headers = _auth_headers()
-        ) as resp:
-      return await resp.json()
-
-  async def fetch_paginated(self, make_query, page_info_path):
-    """Fetches content using GraphQL pagination.
-
-      make_query
-        Callable producing a query string. Accepts a single argument - cursor,
-        which is None during the first call. Resulted query should contain
-        a pageInfo node.
-
-      page_info_path
-        An Iterable containing path to the node 'pageInfo { endCursor hasNextPage }'.
-
-    More info:
-      http://graphql.org/learn/pagination/
-
-    """
-    cursor = None
-    has_next_page = True
-    while has_next_page:
-      while True:
-        result = await self.query(make_query(cursor))
-        error = _analyze_error(result)
-        if error:
-          await _process_error(error)
-        else:
-          break
-      yield result
-      cursor = getin(result, *page_info_path, 'endCursor')
-      has_next_page = getin(result, *page_info_path, 'hasNextPage')
+    while True:
+      async with self._aio_session.post(
+            SERVICE_END_POINT,
+            json = {'query': query},
+            headers = _auth_headers()
+          ) as resp:
+        answer = await resp.json()
+        self.last_error = _analyze_error(answer)
+        if self.last_error:
+          await _process_error(self.last_error)
+          continue
+        return answer
 
 async def _process_error(error):
-  timeout = _timeout_for(error)
-  # TODO use log
-  print('Error occured: {}. Waiting for {} seconds...'.format(error, timeout))
-  await asyncio.sleep(timeout)
+  await asyncio.sleep(_timeout_for(error))
 
 def _timeout_for(error):
   if error == 'ABUSE':
