@@ -2,6 +2,8 @@ import asyncio
 from itertools import groupby
 from datetime import datetime, time
 
+from dateutil.parser import parse as parse_date
+
 from .github import Session as GitHubSession
 from .languages import ALL_LANGUAGES
 from . import data
@@ -19,8 +21,13 @@ def update_language(language, log=None):
 
 async def _update_impl(language, log=None):
   async with GitHubSession() as github:
-    async for repo_id, repo_name, commits in github.fetch_repos_with_commits(language):
-      print(repo_id, repo_name, sum(x[1] for x in commits))
+    async for repo in github.fetch_repos(language, ['id', 'name', 'createdAt', 'pushedAt']):
+      commits = (
+        await github.fetch_commits_monthly_breakdown(
+          repo['id'],
+          since=parse_date(repo['createdAt']),
+          until=parse_date(repo['pushedAt'])))
+      print(repo['id'], repo['name'], sum(x[1] for x in commits))
 
 def update_aggregated_data():
   data.update_aggregated_data()
