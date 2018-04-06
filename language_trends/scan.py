@@ -20,7 +20,7 @@ def update_language(language, log=None):
 async def _update_impl(language, log=None):
   async with GitHubSession() as github:
     async for repo_id, repo_name, commits in github.fetch_repos_with_commits(language):
-      print(repo_id, repo_name, sum(1 for x in commits))
+      print(repo_id, repo_name, sum(x[1] for x in commits))
 
 def update_aggregated_data():
   data.update_aggregated_data()

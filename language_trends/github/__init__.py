@@ -25,7 +25,21 @@ class Session:
   async def fetch_repos_with_commits(self, language, since=None):
     fetched = 0
 
-    async def fetch(selector, start, end):
+    def iterate_commits(monthly_commits):
+      previous_count = 0
+      for date, info in sorted(monthly_commits.items(), key=lambda kv: kv[0]):
+        total_count = info['totalCount']
+        delta = total_count - previous_count
+        previous_count = total_count
+        yield date, delta, total_count
+
+    async def fetch_commits(repo_id, start, end):
+      result = await self._api_session.query(
+        queries.repo_monthly_total_commits(repo_id, start, end))
+      monthly_commits = getin(result, *queries.REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH)
+      return iterate_commits(monthly_commits)
+
+    async def fetch_repos(selector, start, end):
       result = await self._api_session.query(
         queries.search_repos(
           language,
@@ -33,7 +47,8 @@ class Session:
           **{selector: (start, end)}))
       repos = getin(result, *queries.SEARCH_REPOS_BASE_PATH)
       for repo in repos:
-        yield repo['id'], repo['name'], []
+        repo_id = repo['id']
+        yield repo_id, repo['name'], await fetch_commits(repo_id, start, end)
 
     async def impl(selector, start, end, offset=0):
       nonlocal fetched
@@ -42,7 +57,7 @@ class Session:
       print(pad + f'QUERY {selector}: {start}..{end} --> {count}')
       if count < 100:
         fetched += count
-        async for repo in fetch(selector, start, end):
+        async for repo in fetch_repos(selector, start, end):
           yield repo
       else:
         mid = start + (end - start) / 2
