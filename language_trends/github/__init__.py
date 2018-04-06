@@ -1,6 +1,6 @@
 from datetime import datetime
 
-import dateutil.parser
+from dateutil.parser import parse as parse_date
 
 from language_trends.collutil import getin
 from . import queries
@@ -44,6 +44,22 @@ class Session:
 
   async def fetch_repo_commits(self, language, since=None):
     fetched = 0
+
+    def parse_commits(repo):
+      nodes = getin(repo, *queries.REPOS_WITH_COMMITS_COMMITS_PATH)
+      return (parse_date(commit['committedDate']) for commit in nodes)
+
+    async def fetch(selector, start, end):
+      result = await self._api_session.query(
+        queries.repos_with_commits(
+          language,
+          ['id', 'name'],
+          ['committedDate'],
+          **{selector: (start, end)}))
+      repos = getin(result, *queries.REPOS_WITH_COMMITS_REPO_PATH)
+      for repo in repos:
+        yield repo['id'], repo['name'], parse_commits(repo)
+
     async def impl(selector, start, end, offset=0):
       nonlocal fetched
       pad = ' ' * offset
@@ -51,14 +67,23 @@ class Session:
       print(pad + f'QUERY {selector}: {start}..{end} --> {count}')
       if count < 100:
         fetched += count
+        async for repo in fetch(selector, start, end):
+          yield repo
       else:
         mid = start + (end - start) / 2
-        await impl(selector, start, mid, offset + 1)
-        await impl(selector, mid, end, offset + 1)
+        async for repo in impl(selector, start, mid, offset + 1):
+          yield repo
+        async for repo in impl(selector, mid, end, offset + 1):
+          yield repo
+
     if since is None:
-      await impl('created_range', _BEGIN_OF_TIME, _END_OF_TIME)
+      generator = impl('created_range', _BEGIN_OF_TIME, _END_OF_TIME)
     else:
-      await impl('pushed_range', since, _END_OF_TIME)
+      generator = impl('pushed_range', since, _END_OF_TIME)
+
+    async for repo in generator:
+      yield repo
+
     print(f'FETCHED {fetched}')
 
 _BEGIN_OF_TIME = datetime(2008, 1, 1)

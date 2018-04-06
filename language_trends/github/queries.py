@@ -5,11 +5,32 @@ PAGE_SIZE = 100
 
 REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
 
-def repo_count(*args, **kvargs):
+def repo_count(language, **search_args):
   return string.Template(r'''{
       $search {
         repositoryCount
-      }}''').substitute(search=_search_clause(*args, **kvargs))
+      }}''').substitute(search=_search_clause(language, **search_args))
+
+REPOS_WITH_COMMITS_REPO_PATH = ['data', 'search', 'nodes']
+REPOS_WITH_COMMITS_COMMITS_PATH = ['defaultBranchRef', 'target', 'history', 'nodes']
+
+def repos_with_commits(language, repository_fields, commit_fields, **search_args):
+  return string.Template(r'''{
+      $search {
+        nodes {
+          ... on Repository {
+            $repository_fields
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history($history_args) {
+                    nodes {
+                      $commit_fields }}}}}}}}}''').substitute(
+                        search=_search_clause(language, first=100, **search_args),
+                        repository_fields=' '.join(repository_fields),
+                        commit_fields=' '.join(commit_fields),
+                        history_args=_join_args(_pagination_args(first=5))
+                      )
 
 REPOS_BASE_PATH = ['data', 'search']
 
