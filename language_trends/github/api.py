@@ -21,13 +21,18 @@ class Session:
 
   async def query(self, query):
     """Sends a query to GitHub GraphQL API and returns resulted JSON."""
-    # TODO handle errors
-    async with self._aio_session.post(
-          SERVICE_END_POINT,
-          json = {'query': query},
-          headers = _auth_headers()
-        ) as resp:
-      return await resp.json()
+    while True:
+      async with self._aio_session.post(
+            SERVICE_END_POINT,
+            json = {'query': query},
+            headers = _auth_headers()
+          ) as resp:
+        answer = await resp.json()
+        error = _analyze_error(answer)
+        if error:
+          await _process_error(error)
+          continue
+        return answer
 
 async def _process_error(error):
   timeout = _timeout_for(error)

@@ -36,7 +36,7 @@ async def _update_impl(language, log=None):
       time_elapsed = now - last_time
       last_time = now
       repos_per_second = (repos_scanned - last_repos_scanned) / time_elapsed
-      log('  Scanning {}: {} repos, {} commits, {} repos/sec.'.format(
+      log('  Scanning {}: {} repos, {} commits, {:.3} repos/sec.'.format(
         language, repos_scanned, total_commits, repos_per_second))
       last_repos_scanned = repos_scanned
 
