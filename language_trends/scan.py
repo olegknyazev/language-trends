@@ -2,12 +2,9 @@ import asyncio
 from itertools import groupby
 from datetime import datetime, time
 
-from .asyncutil import for_each_parallel
 from .github import Session as GitHubSession
 from .languages import ALL_LANGUAGES
 from . import data
-
-MAX_PARALLEL_REPOS = 4
 
 def update_all(log=None):
   loop = asyncio.get_event_loop()
@@ -20,26 +17,13 @@ def update_language(language, log=None):
   loop.run_until_complete(_update_impl(language, log=log))
   loop.close()
 
-def update_language_2(language):
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(_update_impl_2(language))
-  loop.close()
-
-async def _update_impl_2(language, log=None):
+async def _update_impl(language, log=None):
   async with GitHubSession() as github:
-    async for repo_id, repo_name, commits in github.fetch_repo_commits(language):
+    async for repo_id, repo_name, commits in github.fetch_repos_with_commits(language):
       print(repo_id, repo_name, sum(1 for x in commits))
 
 def update_aggregated_data():
   data.update_aggregated_data()
-
-async def _update_impl(language, log=None):
-  async with GitHubSession() as github:
-    if await _should_update(github, language):
-      await for_each_parallel(
-        github.fetch_repos(language),
-        lambda r: _update_repo_commits(github, *r, language, log=log),
-        max_parallelism=MAX_PARALLEL_REPOS)
 
 async def _should_update(github, language):
   scanned = data.repo_count(language)
@@ -62,7 +46,7 @@ async def _update_repo_commits(github, repo_id, repo_name, language, log=None):
 
 def main():
   try:
-    update_language_2('clojure')
+    update_language('clojure')
   except KeyboardInterrupt:
     pass
   # update_aggregated_data()

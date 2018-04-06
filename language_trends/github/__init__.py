@@ -22,27 +22,7 @@ class Session:
     result = await self._api_session.query(queries.repo_count(language, **query_args))
     return getin(result, *queries.REPO_COUNT_PATH)
 
-  async def fetch_repos(self, language):
-    """Yields all the repositories in the form (id, name) for the specified language."""
-    pages = self._api_session.fetch_paginated(
-      lambda c: queries.repos(language, ['id', 'name'], cursor=c),
-      [*queries.REPOS_BASE_PATH, 'pageInfo'])
-    async for page in pages:
-      for node in getin(page, *queries.REPOS_BASE_PATH, 'nodes'):
-        yield node['id'], node['name']
-
-  async def fetch_commits(self, repo_id, since=None):
-    """Yields all the commits from the repository specified by repo_id, starting
-    from the most recent one.
-    """
-    pages = self._api_session.fetch_paginated(
-      lambda c: queries.commits(repo_id, ['committedDate'], since=since, cursor=c),
-      [*queries.COMMITS_BASE_PATH, 'pageInfo'])
-    async for page in pages:
-      for commit in getin(page, *queries.COMMITS_BASE_PATH, 'nodes'):
-        yield dateutil.parser.parse(commit['committedDate'])
-
-  async def fetch_repo_commits(self, language, since=None):
+  async def fetch_repos_with_commits(self, language, since=None):
     fetched = 0
 
     def parse_commits(repo):

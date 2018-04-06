@@ -1,7 +1,7 @@
 import string
 from datetime import datetime
 
-PAGE_SIZE = 100
+MAX_PAGE_SIZE = 100
 
 REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
 
@@ -26,48 +26,11 @@ def repos_with_commits(language, repository_fields, commit_fields, **search_args
                   history($history_args) {
                     nodes {
                       $commit_fields }}}}}}}}}''').substitute(
-                        search=_search_clause(language, first=100, **search_args),
+                        search=_search_clause(language, first=MAX_PAGE_SIZE, **search_args),
                         repository_fields=' '.join(repository_fields),
                         commit_fields=' '.join(commit_fields),
                         history_args=_join_args(_pagination_args(first=5))
                       )
-
-REPOS_BASE_PATH = ['data', 'search']
-
-def repos(language, fields, cursor=None):
-  return string.Template(r'''{
-      $search {
-        nodes {
-          ... on Repository {
-            $fields }}
-        pageInfo {
-          endCursor
-          hasNextPage }}}''').substitute(
-            fields=' '.join(fields),
-            search=_search_clause(language, first=PAGE_SIZE, after=cursor))
-
-COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target', 'history']
-
-def commits(repo_id, fields, since=None, cursor=None):
-  history_args = {}
-  if since is not None:
-    history_args['since'] = f'"{_fmt_date(since)}"'
-  history_args.update(_pagination_args(first=PAGE_SIZE, after=cursor))
-  return string.Template(r'''{
-      node(id: "$id") {
-        ... on Repository {
-          defaultBranchRef {
-            target {
-              ... on Commit {
-                history($history_args) {
-                  nodes {
-                    $fields }
-                  pageInfo {
-                    endCursor
-                    hasNextPage }}}}}}}}''').substitute(
-                      id=repo_id,
-                      fields=' '.join(fields),
-                      history_args=_join_args(history_args))
 
 def _pagination_args(first=None, after=None):
   result = {}
@@ -90,7 +53,8 @@ def _search_args(language, *, created_range=None, pushed_range=None):
     'query': f'"language:{language} size:>=10000 {created} {pushed}"',
     'type': 'REPOSITORY'}
 
-def _join_args(args): return ', '.join(f'{k}: {v}' for k, v in args.items())
+def _join_args(args):
+  return ', '.join(f'{k}: {v}' for k, v in args.items())
 
 def _fmt_date(date):
   return date.isoformat() if isinstance(date, datetime) else date
