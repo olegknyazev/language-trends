@@ -2,7 +2,7 @@ from datetime import datetime
 
 from dateutil.parser import parse as parse_date
 
-from language_trends.collutil import getin
+from language_trends.util import getin
 from . import queries
 from . import api
 

@@ -3,7 +3,7 @@ import os.path
 
 import aiohttp
 
-from language_trends.collutil import getin
+from language_trends.util import getin
 
 AUTH_TOKEN_FILENAME = './auth_token.txt'
 SERVICE_END_POINT = 'https://api.github.com/graphql'
