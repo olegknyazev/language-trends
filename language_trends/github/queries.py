@@ -11,37 +11,37 @@ def repo_count(language, **search_args):
         repositoryCount
       }}''').substitute(search=_search_clause(language, **search_args))
 
-REPOS_WITH_COMMITS_REPO_PATH = ['data', 'search', 'nodes']
-REPOS_WITH_COMMITS_COMMITS_PATH = ['defaultBranchRef', 'target', 'history', 'nodes']
+SEARCH_REPOS_BASE_PATH = ['data', 'search', 'nodes']
 
-def repos_with_commits(language, repository_fields, commit_fields, **search_args):
+# TODO PLAN:
+#   1. repos_with_commits -> repos
+#   2. add createdAt, pushedAt to its result
+#   3. create separate repo_monthly_commits(id, start_month, end_month)
+
+def search_repos(language, repository_fields, **search_args):
   return string.Template(r'''{
       $search {
         nodes {
           ... on Repository {
-            $repository_fields
-            defaultBranchRef {
-              target {
-                ... on Commit {
-                  history($history_args) {
-                    nodes {
-                      $commit_fields }}}}}}}}}''').substitute(
-                        search=_search_clause(language, first=MAX_PAGE_SIZE, **search_args),
-                        repository_fields=' '.join(repository_fields),
-                        commit_fields=' '.join(commit_fields),
-                        history_args=_join_args(_pagination_args(first=5))
-                      )
+            $repository_fields }}}}''').substitute(
+              search=_search_clause(language, **search_args),
+              repository_fields=' '.join(repository_fields))
 
-def _pagination_args(first=None, after=None):
-  result = {}
-  if first is not None: result['first'] = first
-  if after is not None: result['after'] = f'"{after}"'
-  return result
+# REPOS_WITH_COMMITS_COMMITS_PATH = ['defaultBranchRef', 'target', 'history', 'nodes']
+# def repo_monthly_commits():
+#   '''
+#             defaultBranchRef {
+#               target {
+#                 ... on Commit {
+#                   history($history_args) {
+#                     nodes {
+#                       $commit_fields }}}}}
+#   '''
+#   pass
 
-def _search_clause(language, *, first=None, after=None, created_range=None, pushed_range=None):
-  args = {}
+def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_range=None):
+  args = {'first': first}
   args.update(_search_args(language, created_range=created_range, pushed_range=pushed_range))
-  args.update(_pagination_args(first, after))
   return f'search ({_join_args(args)})'
 
 def _search_args(language, *, created_range=None, pushed_range=None):

@@ -25,20 +25,15 @@ class Session:
   async def fetch_repos_with_commits(self, language, since=None):
     fetched = 0
 
-    def parse_commits(repo):
-      nodes = getin(repo, *queries.REPOS_WITH_COMMITS_COMMITS_PATH)
-      return (parse_date(commit['committedDate']) for commit in nodes)
-
     async def fetch(selector, start, end):
       result = await self._api_session.query(
-        queries.repos_with_commits(
+        queries.search_repos(
           language,
           ['id', 'name'],
-          ['committedDate'],
           **{selector: (start, end)}))
-      repos = getin(result, *queries.REPOS_WITH_COMMITS_REPO_PATH)
+      repos = getin(result, *queries.SEARCH_REPOS_BASE_PATH)
       for repo in repos:
-        yield repo['id'], repo['name'], parse_commits(repo)
+        yield repo['id'], repo['name'], []
 
     async def impl(selector, start, end, offset=0):
       nonlocal fetched
