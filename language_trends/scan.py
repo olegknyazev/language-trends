@@ -25,19 +25,24 @@ async def _update_impl(language, log=None):
   repos_scanned = 0
   total_commits = 0
 
-  async def status():
+  async def print_status_periodically():
     nonlocal repos_scanned
     nonlocal total_commits
     last_repos_scanned = 0
     last_time = time.perf_counter()
+    last_status_string = ''
     while True:
       await asyncio.sleep(3)
       now = time.perf_counter()
       time_elapsed = now - last_time
       last_time = now
       repos_per_second = (repos_scanned - last_repos_scanned) / time_elapsed
-      log('  Scanning {}: {} repos, {} commits, {:.3} repos/sec.'.format(
-        language, repos_scanned, total_commits, repos_per_second))
+      status_string = (
+        '  Scanning {}: {} repos, {} commits, {:.3} repos/sec. {}'.format(
+          language, repos_scanned, total_commits, repos_per_second, github.last_error or ''))
+      if status_string != last_status_string:
+        log(status_string)
+        last_status_string = status_string
       last_repos_scanned = repos_scanned
 
   async def process_repo(repo):
@@ -60,7 +65,7 @@ async def _update_impl(language, log=None):
   if log is not None:
     log('Scanning ' + language)
     loop = asyncio.get_event_loop()
-    status_task = loop.create_task(status())
+    status_task = loop.create_task(print_status_periodically())
 
   async with GitHubSession() as github:
     repos = github.fetch_repos(language, ['id', 'name', 'createdAt', 'pushedAt'])
@@ -81,3 +86,4 @@ def main():
 
 if __name__ == '__main__':
   main()
+

@@ -11,6 +11,9 @@ class Session:
   def __init__(self):
     self._api_session = api.Session()
 
+  @property
+  def last_error(self): return self._api_session.last_error
+
   async def __aenter__(self):
     await self._api_session.__aenter__()
     return self

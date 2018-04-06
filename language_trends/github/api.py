@@ -11,6 +11,7 @@ SERVICE_END_POINT = 'https://api.github.com/graphql'
 class Session:
   def __init__(self):
     self._aio_session = aiohttp.ClientSession()
+    self.last_error = None
 
   async def __aenter__(self):
     await self._aio_session.__aenter__()
@@ -28,17 +29,14 @@ class Session:
             headers = _auth_headers()
           ) as resp:
         answer = await resp.json()
-        error = _analyze_error(answer)
-        if error:
-          await _process_error(error)
+        self.last_error = _analyze_error(answer)
+        if self.last_error:
+          await _process_error(self.last_error)
           continue
         return answer
 
 async def _process_error(error):
-  timeout = _timeout_for(error)
-  # TODO use log
-  print('Error occured: {}. Waiting for {} seconds...'.format(error, timeout))
-  await asyncio.sleep(timeout)
+  await asyncio.sleep(_timeout_for(error))
 
 def _timeout_for(error):
   if error == 'ABUSE':
