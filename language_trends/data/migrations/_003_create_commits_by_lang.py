@@ -4,8 +4,7 @@ def perform(cursor):
       SELECT
           r.lang,
           c.date,
-          SUM(c.commits_since_prev) AS commits_since_prev,
-          SUM(c.commits_total) AS commits_total
+          SUM(c.commits_since_prev) AS commits_since_prev
         FROM commits c INNER JOIN repos r ON c.repo_id = r.id
         GROUP BY r.lang, c.date;
   ''')

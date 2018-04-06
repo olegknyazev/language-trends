@@ -51,7 +51,7 @@ def language_stats(languages):
 def commits_by_language(language):
   with _transaction() as c:
     c.execute(f'''
-      SELECT date, commits_total
+      SELECT date, commits_since_prev
         FROM commits_by_lang
         WHERE lang = %s
         ORDER BY date;''',
