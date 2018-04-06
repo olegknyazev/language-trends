@@ -14,8 +14,14 @@ class CustomJSONEncoder(JSONEncoder):
 app = Flask(__name__, static_url_path='')
 app.json_encoder = CustomJSONEncoder
 
+def integrate(commits):
+  total = 0
+  for date, commits in commits:
+    total += commits
+    yield date, total
+
 @app.route('/')
 def index():
   return render_template(
     'index.html',
-    data=dumps(data.commits_by_language('clojure')))
+    data=dumps(list(integrate(data.commits_by_language('clojure')))))
