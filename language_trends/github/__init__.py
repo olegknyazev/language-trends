@@ -4,6 +4,9 @@ from language_trends.util import getin
 from . import queries
 from . import api
 
+BEGIN_OF_TIME = datetime(2008, 1, 1)
+END_OF_TIME = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
 class Session:
   def __init__(self):
     self._api_session = api.Session()
@@ -20,7 +23,7 @@ class Session:
     result = await self._api_session.query(queries.repo_count(language, **query_args))
     return getin(result, *queries.REPO_COUNT_PATH)
 
-  async def fetch_commits_monthly_breakdown(self, repo_id, since=None, until=None):
+  async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=END_OF_TIME):
     def iterate_commits(monthly_commits):
       previous_count = 0
       for date, info in sorted(monthly_commits.items(), key=lambda kv: kv[0]):
@@ -29,28 +32,23 @@ class Session:
         previous_count = total_count
         yield date, delta, total_count
 
-    result = await self._api_session.query(
-      queries.repo_monthly_total_commits(repo_id, since, until))
+    result = (
+      await self._api_session.query(
+        queries.repo_monthly_total_commits(repo_id, since, until)))
     monthly_commits = getin(result, *queries.REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH)
     return iterate_commits(monthly_commits)
 
   async def fetch_repos(self, language, fields, since=None):
-    fetched = 0
-
     async def fetch(selector, start, end):
-      result = await self._api_session.query(
-        queries.search_repos(language, fields, **{selector: (start, end)}))
-      repos = getin(result, *queries.SEARCH_REPOS_BASE_PATH)
-      for repo in repos:
+      result = (
+        await self._api_session.query(
+          queries.search_repos(language, fields, **{selector: (start, end)})))
+      for repo in getin(result, *queries.SEARCH_REPOS_BASE_PATH):
         yield repo
 
     async def binary_traverse(selector, start, end, offset=0):
-      nonlocal fetched
-      pad = ' ' * offset
       count = await self.repo_count(language, **{selector: (start, end)})
-      print(pad + f'QUERY {selector}: {start}..{end} --> {count}')
-      if count < 100:
-        fetched += count
+      if count < queries.MAX_PAGE_SIZE:
         async for repo in fetch(selector, start, end):
           yield repo
       else:
@@ -61,14 +59,9 @@ class Session:
           yield repo
 
     if since is None:
-      generator = binary_traverse('created_range', _BEGIN_OF_TIME, _END_OF_TIME)
+      generator = binary_traverse('created_range', BEGIN_OF_TIME, END_OF_TIME)
     else:
-      generator = binary_traverse('pushed_range', since, _END_OF_TIME)
-
+      generator = binary_traverse('pushed_range', since, END_OF_TIME)
     async for repo in generator:
       yield repo
 
-    print(f'FETCHED {fetched}')
-
-_BEGIN_OF_TIME = datetime(2008, 1, 1)
-_END_OF_TIME = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)

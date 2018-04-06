@@ -6,7 +6,6 @@ from language_trends.util import months
 MAX_PAGE_SIZE = 100
 
 REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
-
 def repo_count(language, **search_args):
   return string.Template(r'''{
       $search {
@@ -14,7 +13,6 @@ def repo_count(language, **search_args):
       }}''').substitute(search=_search_clause(language, **search_args))
 
 SEARCH_REPOS_BASE_PATH = ['data', 'search', 'nodes']
-
 def search_repos(language, repository_fields, **search_args):
   return string.Template(r'''{
       $search {
@@ -25,7 +23,6 @@ def search_repos(language, repository_fields, **search_args):
               repository_fields=' '.join(repository_fields))
 
 REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target']
-
 def repo_monthly_total_commits(repo_id, since, until):
   return string.Template(r'''{
       node(id: "$repo_id") {
