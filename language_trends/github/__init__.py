@@ -43,12 +43,15 @@ class Session:
       result = await self._api_session.query(
         queries.search_repos(
           language,
-          ['id', 'name'],
+          ['id', 'name', 'createdAt', 'pushedAt'],
           **{selector: (start, end)}))
       repos = getin(result, *queries.SEARCH_REPOS_BASE_PATH)
       for repo in repos:
         repo_id = repo['id']
-        yield repo_id, repo['name'], await fetch_commits(repo_id, start, end)
+        created_at = parse_date(repo['createdAt'])
+        pushed_at = parse_date(repo['pushedAt'])
+        commits = await fetch_commits(repo_id, created_at, pushed_at)
+        yield repo_id, repo['name'], commits
 
     async def impl(selector, start, end, offset=0):
       nonlocal fetched
