@@ -30,6 +30,11 @@ def repo_count(language):
     c.execute('SELECT COUNT(*) FROM repos WHERE lang = %s;', (language,))
     return c.fetchone()[0]
 
+def is_repo_exists(repo_id):
+  with _transaction() as c:
+    c.execute('SELECT COUNT(*) FROM repos WHERE id = %s;', (repo_id,))
+    return c.fetchone()[0] == 1
+
 def language_stats(languages):
   """Returns a list containing (lang, repo_count, commit_count) for each lang from
   the passed languages Iterable.

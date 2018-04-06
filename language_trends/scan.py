@@ -23,12 +23,14 @@ def update_language(language, log=None):
 
 async def _update_impl(language, log=None):
   repos_scanned = 0
+  repos_skipped = 0
   total_commits = 0
 
   async def print_status_periodically():
     nonlocal repos_scanned
+    nonlocal repos_skipped
     nonlocal total_commits
-    last_repos_scanned = 0
+    last_repos_processed = 0
     last_time = time.perf_counter()
     last_status_string = ''
     while True:
@@ -36,16 +38,26 @@ async def _update_impl(language, log=None):
       now = time.perf_counter()
       time_elapsed = now - last_time
       last_time = now
-      repos_per_second = (repos_scanned - last_repos_scanned) / time_elapsed
+      repos_processed = repos_scanned + repos_skipped
+      repos_per_second = (repos_processed - last_repos_processed) / time_elapsed
       status_string = (
-        '  Scanning {}: {} repos, {} commits, {:.3} repos/sec. {}'.format(
-          language, repos_scanned, total_commits, repos_per_second, github.last_error or ''))
+        '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {}'.format(
+          language,
+          repos_scanned,
+          repos_skipped,
+          total_commits,
+          repos_per_second,
+          github.last_error or ''))
       if status_string != last_status_string:
         log(status_string)
         last_status_string = status_string
-      last_repos_scanned = repos_scanned
+      last_repos_processed = repos_processed
 
   async def process_repo(repo):
+    nonlocal repos_skipped
+    if data.is_repo_exists(repo['id']):
+      repos_skipped += 1
+      return
     commits = (
       await github.fetch_commits_monthly_breakdown(
         repo['id'],
