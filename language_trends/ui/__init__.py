@@ -18,4 +18,4 @@ app.json_encoder = CustomJSONEncoder
 def index():
   return render_template(
     'index.html',
-    data=dumps(data.commits_by_language('clojure', aggregate='MONTH')))
+    data=dumps(data.commits_by_language('clojure')))
