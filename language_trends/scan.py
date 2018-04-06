@@ -8,7 +8,7 @@ from .languages import ALL_LANGUAGES
 from .asyncutil import for_each_parallel
 from . import data
 
-MAX_PARALLEL_REPOS = 4
+MAX_PARALLEL_REPOS = 10
 
 def update_all(log=None):
   loop = asyncio.get_event_loop()
