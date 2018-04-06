@@ -26,7 +26,7 @@ class Session:
   async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=END_OF_TIME):
     def iterate_commits(monthly_commits):
       previous_count = 0
-      for date, info in sorted(monthly_commits.items(), key=lambda kv: kv[0]):
+      for date, info in monthly_commits:
         total_count = info['totalCount']
         delta = total_count - previous_count
         previous_count = total_count
@@ -36,6 +36,8 @@ class Session:
       await self._api_session.query(
         queries.repo_monthly_total_commits(repo_id, since, until)))
     monthly_commits = getin(result, *queries.REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH)
+    monthly_commits = [(queries.month_id_to_date(d), info) for d, info in monthly_commits.items()]
+    monthly_commits.sort(key=lambda kv: kv[0])
     return iterate_commits(monthly_commits)
 
   async def fetch_repos(self, language, fields, since=None):

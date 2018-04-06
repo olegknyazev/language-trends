@@ -29,7 +29,16 @@ async def _update_impl(language, log=None):
         repo['id'],
         since=parse_date(repo['createdAt']),
         until=parse_date(repo['pushedAt'])))
-    print(repo['id'], repo['name'], sum(x[1] for x in commits))
+    update_repo(repo, commits)
+
+  def update_repo(repo, commits):
+    commits = list(commits)
+    data.store_repo(repo['id'], repo['name'], language)
+    data.store_commits(repo['id'], commits)
+    print(
+      'Repo {} processed. {} commits total.'.format(
+        repo['name'],
+        sum(x[1] for x in commits)))
 
   async with GitHubSession() as github:
     repos = github.fetch_repos(language, ['id', 'name', 'createdAt', 'pushedAt'])

@@ -1,4 +1,5 @@
 import string
+import re
 from datetime import date, time, datetime
 
 from language_trends.util import months
@@ -33,6 +34,12 @@ def repo_monthly_total_commits(repo_id, since, until):
                 $history }}}}}}''').substitute(
                   repo_id=repo_id,
                   history=_history_clauses(since, until))
+
+_ID_TO_MONTH_PATTERN = re.compile(r'_(\d{4})_(\d{1,2})')
+
+def month_id_to_date(month_id):
+  match = _ID_TO_MONTH_PATTERN.fullmatch(month_id)
+  return date(int(match.group(1)), int(match.group(2)), 1)
 
 def _history_clauses(since, until):
   return '\n'.join(_commits_upto_clause(m) for m in months(since, until))
