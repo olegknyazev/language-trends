@@ -11,8 +11,9 @@ SERVICE_END_POINT = 'https://api.github.com/graphql'
 class Session:
   def __init__(self):
     self._aio_session = aiohttp.ClientSession()
-    self.last_error = None
     self.requests_sent = 0
+    self.abuse_detected = False
+    self.rate_limited = False
 
   async def __aenter__(self):
     await self._aio_session.__aenter__()
@@ -30,35 +31,37 @@ class Session:
             json = {'query': query},
             headers = _auth_headers()
           ) as resp:
+        self.abuse_detected = False
+        self.rate_limited = False
         answer = await resp.json()
-        self.last_error = _analyze_error(answer)
-        if self.last_error:
-          await _process_error(self.last_error)
+        if _is_abuse(answer):
+          self.abuse_detected = True
+          await asyncio.sleep(20)
           continue
+        if _is_rate_limited(answer):
+          self.rate_limited = True
+          await asyncio.sleep(60 * 10)
+          continue
+        if _is_error(answer):
+          raise AnswerError(answer)
         return answer
 
-async def _process_error(error):
-  await asyncio.sleep(_timeout_for(error))
+class AnswerError(Exception):
+  def __init__(self, answer):
+    super().__init__(_errors_string(answer))
+    self.answer = answer
 
-def _timeout_for(error):
-  if error == 'ABUSE':
-    return 20
-  elif error == 'RATE_LIMITED':
-    return 10 * 60 # 10 minutes
-  elif error == 'UNKNOWN_ERROR':
-    return 5
-  raise Exception('Unknown error: ' + str(error))
+def _is_abuse(answer):
+  return 'abuse' in answer.get('message', '')
 
-def _analyze_error(result):
-  errors = result.get('errors', None)
-  if errors:
-    error_types = [e.get('type', None) for e in errors]
-    if 'RATE_LIMITED' in error_types:
-      return 'RATE_LIMITED'
-    return 'UNKNOWN_ERROR'
-  if 'abuse' in result.get('message', ''):
-    return 'ABUSE'
-  return None
+def _is_rate_limited(answer):
+  return any('RATE_LIMITED' in e.get('type', '') for e in answer.get('errors', []))
+
+def _is_error(answer):
+  return 'errors' in answer
+
+def _errors_string(answer):
+  return '\n'.join(e.get('message', '') for e in answer.get('errors', []))
 
 def _auth_headers():
   token = _auth_token()

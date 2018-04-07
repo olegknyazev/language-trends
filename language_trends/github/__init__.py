@@ -12,7 +12,10 @@ class Session:
     self._api_session = api.Session()
 
   @property
-  def last_error(self): return self._api_session.last_error
+  def abuse_detected(self): return self._api_session.abuse_detected
+
+  @property
+  def rate_limited(self): return self._api_session.rate_limited
 
   @property
   def requests_sent(self): return self._api_session.requests_sent

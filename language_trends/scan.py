@@ -42,15 +42,19 @@ async def _update_impl(language, log=None):
       repos_processed = repos_scanned + repos_skipped
       repos_per_second = (repos_processed - last_repos_processed) / time_elapsed
       requests_per_second = (github.requests_sent - last_requests_sent) / time_elapsed
-      status_string = (
-        '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec. {}'.format(
-          language,
-          repos_scanned,
-          repos_skipped,
-          total_commits,
-          repos_per_second,
-          requests_per_second,
-          github.last_error or ''))
+      if github.rate_limited:
+        status_string = 'Rate limited, waiting for some time...'
+      elif github.abuse_detected:
+        status_string = 'Abuse detected, waiting for some time...'
+      else:
+        status_string = (
+          '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec.'.format(
+            language,
+            repos_scanned,
+            repos_skipped,
+            total_commits,
+            repos_per_second,
+            requests_per_second))
       if status_string != last_status_string:
         log(status_string)
         last_status_string = status_string
