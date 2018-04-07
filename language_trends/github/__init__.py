@@ -14,6 +14,9 @@ class Session:
   @property
   def last_error(self): return self._api_session.last_error
 
+  @property
+  def requests_sent(self): return self._api_session.requests_sent
+
   async def __aenter__(self):
     await self._api_session.__aenter__()
     return self

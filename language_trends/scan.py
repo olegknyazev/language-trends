@@ -33,6 +33,7 @@ async def _update_impl(language, log=None):
     last_repos_processed = 0
     last_time = time.perf_counter()
     last_status_string = ''
+    last_requests_sent = 0
     while True:
       await asyncio.sleep(3)
       now = time.perf_counter()
@@ -40,18 +41,21 @@ async def _update_impl(language, log=None):
       last_time = now
       repos_processed = repos_scanned + repos_skipped
       repos_per_second = (repos_processed - last_repos_processed) / time_elapsed
+      requests_per_second = (github.requests_sent - last_requests_sent) / time_elapsed
       status_string = (
-        '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {}'.format(
+        '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec. {}'.format(
           language,
           repos_scanned,
           repos_skipped,
           total_commits,
           repos_per_second,
+          requests_per_second,
           github.last_error or ''))
       if status_string != last_status_string:
         log(status_string)
         last_status_string = status_string
       last_repos_processed = repos_processed
+      last_requests_sent = github.requests_sent
 
   async def process_repo(repo):
     nonlocal repos_skipped

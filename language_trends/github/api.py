@@ -12,6 +12,7 @@ class Session:
   def __init__(self):
     self._aio_session = aiohttp.ClientSession()
     self.last_error = None
+    self.requests_sent = 0
 
   async def __aenter__(self):
     await self._aio_session.__aenter__()
@@ -23,6 +24,7 @@ class Session:
   async def query(self, query):
     """Sends a query to GitHub GraphQL API and returns resulted JSON."""
     while True:
+      self.requests_sent += 1
       async with self._aio_session.post(
             SERVICE_END_POINT,
             json = {'query': query},
