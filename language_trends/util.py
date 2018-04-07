@@ -1,8 +1,10 @@
-import functools
+from functools import reduce
+from itertools import islice, tee, count, starmap
 from datetime import date
+import operator
 
 def getin(obj, *path):
-  return functools.reduce(lambda obj, seg: obj[seg], path, obj)
+  return reduce(lambda obj, seg: obj[seg], path, obj)
 
 def months_starting_from(since):
   year = since.year
@@ -19,3 +21,7 @@ def months(since, until):
     yield d
     if d.year >= until.year and d.month >= until.month:
       break
+
+def sliding_pairs(iter):
+  xs, ys = tee(iter)
+  return zip(xs, islice(ys, 1, None))

@@ -28,12 +28,11 @@ class Session:
 
   async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=END_OF_TIME):
     def iterate_commits(monthly_commits):
-      previous_count = 0
+      total_count = 0
       for date, info in monthly_commits:
-        total_count = info['totalCount']
-        delta = total_count - previous_count
-        previous_count = total_count
-        yield date, delta, total_count
+        monthly_count = info['totalCount']
+        total_count += monthly_count
+        yield date, monthly_count, total_count
 
     result = (
       await self._api_session.query(

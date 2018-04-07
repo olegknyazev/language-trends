@@ -2,9 +2,9 @@ from unittest import TestCase
 from datetime import date, datetime
 
 from hypothesis import given
-from hypothesis.strategies import tuples, datetimes
+from hypothesis.strategies import tuples, datetimes, lists
 
-from language_trends.util import months
+from language_trends.util import months, sliding_pairs
 
 _REASONABLE_DATE_RANGE = {
   'min_value': datetime(1995, 1, 1),
@@ -31,3 +31,6 @@ class months_Test(TestCase):
   def test_yielded_dates_should_be_the_first_day_of_month(self, since_until):
     assert all(getattr(m, 'day', 1) == 1 for m in months(*since_until))
 
+class sliding_pairs_Test(TestCase):
+  def test_yields_sliding_pairs(self):
+    self.assertListEqual([(1, 2), (2, 3), (3, 4)], list(sliding_pairs([1, 2, 3, 4])))

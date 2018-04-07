@@ -1,8 +1,9 @@
 import string
 import re
 from datetime import date, time, datetime
+from itertools import starmap
 
-from language_trends.util import months
+from language_trends.util import months, sliding_pairs
 
 MAX_PAGE_SIZE = 100
 
@@ -42,10 +43,12 @@ def month_id_to_date(month_id):
   return date(int(match.group(1)), int(match.group(2)), 1)
 
 def _history_clauses(since, until):
-  return '\n'.join(_commits_upto_clause(m) for m in months(since, until))
+  return '\n'.join(starmap(_commits_within, sliding_pairs(months(since, until))))
 
-def _commits_upto_clause(date):
-  return f'_{date.year}_{date.month}: history(until: "{_fmt_date(date)}") {{ totalCount }}'
+def _commits_within(since, until):
+  month_id = f'_{until.year}_{until.month}'
+  history_args = f'since: "{_fmt_date(since)}", until: "{_fmt_date(until)}"'
+  return f'{month_id}: history({history_args}) {{ totalCount }}'
 
 def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_range=None):
   args = {'first': first}
