@@ -1,12 +1,13 @@
-from datetime import datetime
+from datetime import datetime, date
 
-from language_trends.util import getin
+from language_trends.util import getin, months_between, add_months
 from . import queries
 from . import api
 
 BEGIN_OF_TIME = datetime(2008, 1, 1)
 END_OF_TIME = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
+# TODO transform into bunch of free functions? (client will create an underlying session directly)
 class Session:
   def __init__(self):
     self._api_session = api.Session()
@@ -40,11 +41,32 @@ class Session:
         total_count += monthly_count
         yield date, monthly_count, total_count
 
-    result = (
-      await self._api_session.query(
-        queries.repo_monthly_total_commits(repo_id, since, until)))
-    monthly_commits = getin(result, *queries.REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH)
-    monthly_commits = [(queries.month_id_to_date(d), info) for d, info in monthly_commits.items()]
+    since = date(since.year, since.month, 1)
+    until = date(until.year, until.month, 1)
+
+    num_intervals = months_between(since, until) - 1
+    monthly_commits = []
+    window = 40
+    curr_since = since
+    curr_until = min(*(until, add_months(since, window)))
+    while len(monthly_commits) < num_intervals:
+      try:
+        result = (
+          await self._api_session.query(
+            queries.repo_monthly_total_commits(repo_id, curr_since, curr_until)))
+      except api.AnswerError:
+        if window > 5:
+          window //= 2
+          curr_until = add_months(curr_since, window)
+          continue
+        else:
+          raise
+      curr_since = curr_until
+      curr_until = min(*(until, add_months(curr_since, window)))
+      commits = getin(result, *queries.REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH)
+      commits = [(queries.month_id_to_date(d), info) for d, info in commits.items()]
+      monthly_commits += commits
+
     monthly_commits.sort(key=lambda kv: kv[0])
     return iterate_commits(monthly_commits)
 

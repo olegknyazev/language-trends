@@ -25,3 +25,10 @@ def months(since, until):
 def sliding_pairs(iter):
   xs, ys = tee(iter)
   return zip(xs, islice(ys, 1, None))
+
+def add_months(d, months):
+  new_months = d.month + months - 1
+  return date(d.year + new_months // 12, new_months % 12 + 1, d.day)
+
+def months_between(since, until):
+  return (until.year - since.year) * 12 + (until.month - since.month) + 1
