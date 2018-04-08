@@ -3,7 +3,8 @@ import re
 from datetime import date, time, datetime
 from itertools import starmap
 
-from language_trends.util import months, sliding_pairs
+from language_trends.util import sliding_pairs
+from language_trends.months import months_between
 
 MAX_PAGE_SIZE = 100
 
@@ -43,7 +44,7 @@ def month_id_to_date(month_id):
   return date(int(match.group(1)), int(match.group(2)), 1)
 
 def _history_clauses(since, until):
-  return '\n'.join(starmap(_commits_within, sliding_pairs(months(since, until))))
+  return '\n'.join(starmap(_commits_within, sliding_pairs(months_between(since, until))))
 
 def _commits_within(since, until):
   month_id = f'_{until.year}_{until.month}'

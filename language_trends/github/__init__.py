@@ -1,6 +1,7 @@
 from datetime import datetime, date
 
-from language_trends.util import getin, months_between, add_months
+from language_trends.util import getin
+from language_trends.months import num_of_months_between, add_months
 from . import queries
 from . import api
 
@@ -44,7 +45,7 @@ class Session:
     since = date(since.year, since.month, 1)
     until = date(until.year, until.month, 1)
 
-    num_intervals = months_between(since, until) - 1
+    num_intervals = num_of_months_between(since, until) - 1
     monthly_commits = []
     window = 40
     curr_since = since
