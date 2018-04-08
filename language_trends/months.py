@@ -22,3 +22,6 @@ def num_of_months_between(since, until):
 def add_months(d, months):
   new_months = d.month + months - 1
   return date(d.year + new_months // 12, new_months % 12 + 1, d.day)
+
+def first_day_of_month(d):
+  return date(d.year, d.month, 1)
