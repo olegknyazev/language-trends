@@ -8,18 +8,14 @@
       href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
       integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm"
       crossorigin="anonymous">
-    <script
-      src="https://code.jquery.com/jquery-3.3.1.min.js"
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"
       integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
       crossorigin="anonymous"></script>
+    <script src="index.js"></script>
     <link href="index.css" rel="stylesheet">
     <title>Language Trends</title>
     <script>
       var data = {{data|safe}};
-      var colors = [
-        ['#ff000080', '#ff000010'],
-        ['#00ff0080', '#00ff0010'],
-        ['#0000ff80', '#0000ff10']];
     </script>
   </head>
   <body>
@@ -35,45 +31,7 @@
       <canvas id="chart"></canvas>
       <script>
         $(document).ready(() => {
-          let datasets = [];
-          for (let l = 0; l < data.langs.length; ++l)
-            datasets.push({
-                label: data.langs[l],
-                borderColor: colors[l][0],
-                backgroundColor: colors[l][1],
-                fill: 'bottom',
-                lineTension: 0,
-                data: data.commits.map(r => r[1 + l])
-              });
-          let ctx = document.getElementById("chart").getContext('2d');
-          let myChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-              labels: data.commits.map(r => new Date(r[0])),
-              datasets: datasets
-            },
-            options: {
-              legend: {
-                position: 'right'
-              },
-              elements: {
-                line: {
-                  borderWidth: 2
-                },
-                point: {
-                  radius: 0
-                }
-              },
-              scales: {
-                xAxes: [{
-                  type: 'time',
-                  time: {
-                    unit: 'year'
-                  }
-                }]
-              }
-            }
-          });
+          initializeChart(document.getElementById("chart"), data);
         });
       </script>
     </div>
