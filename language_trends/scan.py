@@ -10,16 +10,22 @@ from . import util
 
 MAX_PARALLEL_REPOS = 10
 
-def update_all(log=print):
+def update(langs, log=print):
   loop = asyncio.get_event_loop()
-  for lang in ALL_LANGUAGES:
+  for lang in langs:
     loop.run_until_complete(_update_impl(lang, log=log))
   loop.close()
 
-def update_language(lang, log=print):
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(_update_impl(lang, log=log))
-  loop.close()
+def update_aggregated_data():
+  data.update_aggregated_data()
+
+def main(args):
+  langs = args if args else ALL_LANGUAGES
+  try:
+    update(langs, log=print)
+  except KeyboardInterrupt:
+    pass
+  update_aggregated_data()
 
 async def _update_impl(lang, log=print):
   until = util.current_date()
@@ -131,17 +137,7 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
     finally:
       status_task.cancel()
 
-def update_aggregated_data():
-  data.update_aggregated_data()
-
-def main():
-  try:
-    # update_language('clojure', log=print)
-    update_all(log=print)
-  except KeyboardInterrupt:
-    pass
-  update_aggregated_data()
-
 if __name__ == '__main__':
-  main()
+  import sys
+  main(sys.argv[1:])
 
