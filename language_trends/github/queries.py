@@ -51,18 +51,19 @@ def _commits_within(since, until):
   history_args = f'since: "{_fmt_date(since)}", until: "{_fmt_date(until)}"'
   return f'{month_id}: history({history_args}) {{ totalCount }}'
 
-def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_range=None):
+def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_after=None):
   args = {'first': first}
-  args.update(_search_args(language, created_range=created_range, pushed_range=pushed_range))
+  args.update(_search_args(language, created_range=created_range, pushed_after=pushed_after))
   return f'search ({_join_args(args)})'
 
-def _search_args(language, *, created_range=None, pushed_range=None):
-  def _time_range_args(action, range):
-    return f'{action}:{_fmt_date(range[0])}..{_fmt_date(range[1])}' if range is not None else ''
-  created = _time_range_args('created', created_range)
-  pushed = _time_range_args('pushed', pushed_range)
+def _search_args(language, *, created_range=None, pushed_after=None):
+  additional_args = ''
+  if created_range is not None:
+    additional_args += f' created:{_fmt_date(created_range[0])}..{_fmt_date(created_range[1])}'
+  if pushed_after is not None:
+    additional_args += f' pushed:>={_fmt_date(pushed_after)}'
   return {
-    'query': f'"language:{language} size:>=10000 {created} {pushed}"',
+    'query': f'"language:{language} size:>=10000 {additional_args}"',
     'type': 'REPOSITORY'}
 
 def _join_args(args):

@@ -70,34 +70,28 @@ class Session:
     monthly_commits.sort(key=lambda kv: kv[0])
     return iterate_commits(monthly_commits)
 
-  async def fetch_repos(self, language, fields, pushed_since=None, until=None):
-    async def fetch(selector, start, end):
+  async def fetch_repos(self, language, fields, pushed_after=None, until=None):
+    async def fetch(start, end, **args):
       result = (
         await self._api_session.query(
-          queries.search_repos(language, fields, **{selector: (start, end)})))
+          queries.search_repos(language, fields, created_range=(start, end), **args)))
       for repo in getin(result, *queries.SEARCH_REPOS_BASE_PATH):
         yield _parse_dates_to_utc(repo)
 
-    async def binary_traverse(selector, start, end, offset=0):
-      count = await self.repo_count(language, **{selector: (start, end)})
+    async def binary_traverse(start, end, **args):
+      count = await self.repo_count(language, created_range=(start, end), **args)
       if count < queries.MAX_PAGE_SIZE:
-        async for repo in fetch(selector, start, end):
+        async for repo in fetch(start, end, **args):
           yield repo
       else:
         mid = start + (end - start) / 2
-        async for repo in binary_traverse(selector, start, mid, offset + 1):
+        async for repo in binary_traverse(start, mid, **args):
           yield repo
-        async for repo in binary_traverse(selector, mid, end, offset + 1):
+        async for repo in binary_traverse(mid, end, **args):
           yield repo
 
     until = until or current_date()
-
-    if pushed_since is None:
-      generator = binary_traverse('created_range', BEGIN_OF_TIME, until)
-    else:
-      generator = binary_traverse('pushed_range', pushed_since, until)
-
-    async for repo in generator:
+    async for repo in binary_traverse(BEGIN_OF_TIME, until, pushed_after=pushed_after):
       yield repo
 
 _DATE_KEYS = ['createdAt', 'pushedAt']
