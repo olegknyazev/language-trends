@@ -1,12 +1,13 @@
-from datetime import datetime, date
+from datetime import datetime, timezone
 
-from language_trends.util import getin
+import dateutil.parser
+
+from language_trends.util import getin, current_date
 from language_trends.months import num_of_months_between, add_months, first_day_of_month
 from . import queries
 from . import api
 
 BEGIN_OF_TIME = datetime(2008, 1, 1)
-END_OF_TIME = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 # TODO transform into bunch of free functions? (client will create an underlying session directly)
 class Session:
@@ -34,7 +35,7 @@ class Session:
     result = await self._api_session.query(queries.repo_count(language, **query_args))
     return getin(result, *queries.REPO_COUNT_PATH)
 
-  async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=END_OF_TIME):
+  async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=None):
     def iterate_commits(monthly_commits):
       total_count = 0
       for date, info in monthly_commits:
@@ -43,7 +44,7 @@ class Session:
         yield date, monthly_count, total_count
 
     since = first_day_of_month(since)
-    until = first_day_of_month(until)
+    until = first_day_of_month(until or current_date())
 
     num_intervals = num_of_months_between(since, until) - 1
     monthly_commits = []
@@ -69,13 +70,13 @@ class Session:
     monthly_commits.sort(key=lambda kv: kv[0])
     return iterate_commits(monthly_commits)
 
-  async def fetch_repos(self, language, fields, since=None):
+  async def fetch_repos(self, language, fields, pushed_since=None, until=None):
     async def fetch(selector, start, end):
       result = (
         await self._api_session.query(
           queries.search_repos(language, fields, **{selector: (start, end)})))
       for repo in getin(result, *queries.SEARCH_REPOS_BASE_PATH):
-        yield repo
+        yield _parse_dates_to_utc(repo)
 
     async def binary_traverse(selector, start, end, offset=0):
       count = await self.repo_count(language, **{selector: (start, end)})
@@ -89,10 +90,20 @@ class Session:
         async for repo in binary_traverse(selector, mid, end, offset + 1):
           yield repo
 
-    if since is None:
-      generator = binary_traverse('created_range', BEGIN_OF_TIME, END_OF_TIME)
+    until = until or current_date()
+
+    if pushed_since is None:
+      generator = binary_traverse('created_range', BEGIN_OF_TIME, until)
     else:
-      generator = binary_traverse('pushed_range', since, END_OF_TIME)
+      generator = binary_traverse('pushed_range', pushed_since, until)
+
     async for repo in generator:
       yield repo
 
+_DATE_KEYS = ['createdAt', 'pushedAt']
+
+def _parse_date_to_utc(date_str):
+  return dateutil.parser.parse(date_str).astimezone(timezone.utc).replace(tzinfo=None)
+
+def _parse_dates_to_utc(dict):
+  return {k: _parse_date_to_utc(v) if k in _DATE_KEYS else v for k, v in dict.items()}

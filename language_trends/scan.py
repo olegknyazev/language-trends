@@ -1,12 +1,12 @@
 import asyncio
 import time
 
-from dateutil.parser import parse as parse_date
-
 from .github import Session as GitHubSession
 from .languages import ALL_LANGUAGES
 from .asyncutil import for_each_parallel
+from .months import first_day_of_month
 from . import data
+from . import util
 
 MAX_PARALLEL_REPOS = 10
 
@@ -25,6 +25,7 @@ async def _update_impl(language, log=None):
   repos_scanned = 0
   repos_skipped = 0
   total_commits = 0
+  until = util.current_date()
 
   async def print_status_periodically():
     nonlocal repos_scanned
@@ -69,8 +70,8 @@ async def _update_impl(language, log=None):
     commits = (
       await github.fetch_commits_monthly_breakdown(
         repo['id'],
-        since=parse_date(repo['createdAt']),
-        until=parse_date(repo['pushedAt'])))
+        since=repo['createdAt'],
+        until=min((until, repo['pushedAt']))))
     update_repo(repo, commits)
 
   def update_repo(repo, commits):
@@ -93,6 +94,8 @@ async def _update_impl(language, log=None):
 
   if log is not None:
     status_task.cancel()
+
+  data.store_lang_scan(language, actual_by=first_day_of_month(until))
 
 def update_aggregated_data():
   data.update_aggregated_data()

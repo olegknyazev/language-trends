@@ -21,6 +21,14 @@ def store_commits(repo_id, data):
                 commits_total = EXCLUDED.commits_total;''',
       ((repo_id, *cols) for cols in data))
 
+def store_lang_scan(lang, actual_by):
+  with _transaction() as c:
+    c.execute('''
+      INSERT INTO lang_scans VALUES (%s, %s)
+        ON CONFLICT (lang) DO UPDATE
+          SET actual_by = EXCLUDED.actual_by;''',
+      (lang, actual_by))
+
 def update_aggregated_data():
   with _transaction() as c:
     c.execute('REFRESH MATERIALIZED VIEW commits_by_lang;')
