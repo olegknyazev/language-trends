@@ -29,7 +29,7 @@ def _collect_data(langs):
   num_langs = len(langs)
   result = defaultdict(lambda: [0] * num_langs)
   for i, lang in enumerate(langs):
-    for date, commits in integrate(data.commits_by_language(lang)):
+    for date, commits in data.commits_by_language(lang):
       result[date][i] = commits
 
   empty_languages = {i for i in range(num_langs) if all(c[i] == 0 for c in result.values())}

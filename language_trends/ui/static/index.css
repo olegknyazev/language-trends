@@ -11,3 +11,11 @@
 .footer {
     text-align: center;
 }
+
+.chart-description {
+    width: 60%;
+}
+
+div {
+    margin-bottom: 1em;
+}

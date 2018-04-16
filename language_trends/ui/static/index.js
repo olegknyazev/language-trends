@@ -1,7 +1,41 @@
+function integrate(commits) {
+  result = []
+  totals = []
+  for (let c of commits) {
+    for (let i = 1; i < c.length; ++i)
+      totals[i] = (totals[i] || 0) + c[i];
+    result.push([c[0]].concat(totals.slice(1)));
+  }
+  return result;
+}
+
+let chartData = null;
+
 let colors = [
   ['#ff000080', '#ff000010'],
   ['#00ff0080', '#00ff0010'],
   ['#0000ff80', '#0000ff10']];
+
+function setChartType(type) {
+  initializeChart(document.getElementById("chart"), chartData[type].data);
+  for (let t in chartData)
+    chartData[t].description.toggle(t === type);
+}
+
+function main(d) {
+  chartData = {
+    monthly: {
+      description: $('#monthly-description'),
+      data: d
+    },
+    total: {
+      description: $('#total-description'),
+      data: Object.assign({}, d, {commits: integrate(d.commits)})
+    }
+  }
+  initializeChart(document.getElementById("chart"), chartData.monthly.data);
+  $('input[type="radio"]').change(ev => setChartType(ev.target.id));
+}
 
 function initializeChart(element, data) {
   let datasets = [];

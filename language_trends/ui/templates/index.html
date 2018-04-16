@@ -23,16 +23,25 @@
         <h1>Language Trends</h1>
     </div>
     <div class="container">
-      <div>
-        The following chart shows the cumulative number of commits per programming language made in repositories of total size 10 MB or larger.
+      <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+          <input type="radio" name="options" id="monthly" autocomplete="off" checked> Monthly
+        </label>
+        <label class="btn btn-secondary">
+          <input type="radio" name="options" id="total" autocomplete="off"> Total
+        </label>
+      </div>
+      <div class="chart-description" id="monthly-description">
+        The following chart shows the monthly amount of commits per programming language made in repositories of total size 10 MB or larger.
+      </div>
+      <div class="chart-description" id="total-description" style="display: none;">
+        The following chart shows the cumulative amount of commits per programming language made in repositories of total size 10 MB or larger.
       </div>
     </div>
     <div class="container">
       <canvas id="chart"></canvas>
       <script>
-        $(document).ready(() => {
-          initializeChart(document.getElementById("chart"), data);
-        });
+        $(document).ready(() => main(data));
       </script>
     </div>
     <div class="container footer">
