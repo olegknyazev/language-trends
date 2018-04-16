@@ -51,6 +51,7 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
   since = since or BEGIN_OF_TIME
   until = until or util.current_date()
 
+  repos_total = 0
   repos_scanned = 0
   repos_skipped = 0
   total_commits = 0
@@ -72,18 +73,18 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
       repos_per_second = (repos_processed - last_repos_processed) / time_elapsed
       requests_per_second = (github.requests_sent - last_requests_sent) / time_elapsed
       if github.rate_limited:
-        status_string = 'Rate limited, waiting for some time...'
+        status_string = '  Rate limited, waiting for some time...'
       elif github.abuse_detected:
-        status_string = 'Abuse detected, waiting for some time...'
+        status_string = '  Abuse detected, waiting for some time...'
       else:
         status_string = (
-          '  {}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec.'.format(
-            language,
-            repos_scanned,
-            repos_skipped,
-            total_commits,
-            repos_per_second,
-            requests_per_second))
+          f'  {language}:' +
+          f' {repos_scanned} scanned,' +
+          f' {repos_skipped} skipped' +
+          f' ({repos_processed} / {repos_total}, {int(repos_processed / repos_total * 100)}%),' +
+          f' {total_commits} commits,' +
+          f' {repos_per_second:.3} repos/sec.,' +
+          f' {requests_per_second:.3} req./sec.')
       if status_string != last_status_string:
         log(status_string)
         last_status_string = status_string
@@ -111,18 +112,24 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
     repos_scanned += 1
     total_commits += sum(x[1] for x in commits)
 
-  status_task = asyncio.ensure_future(print_status_periodically())
-
   async with GitHubSession() as github:
-    repos = (
-      github.fetch_repos(
+    repos_total = (
+      await github.repo_count(
         language,
-        ['id', 'name', 'createdAt', 'pushedAt'],
-        pushed_after=since,
-        until=until))
-    await for_each_parallel(repos, process_repo, MAX_PARALLEL_REPOS)
-
-  status_task.cancel()
+        created_range=(BEGIN_OF_TIME, until),
+        pushed_after=since))
+    log(f'  {repos_total} repositories to scan')
+    status_task = asyncio.ensure_future(print_status_periodically())
+    try:
+      repos = (
+        github.fetch_repos(
+          language,
+          ['id', 'name', 'createdAt', 'pushedAt'],
+          pushed_after=since,
+          until=until))
+      await for_each_parallel(repos, process_repo, MAX_PARALLEL_REPOS)
+    finally:
+      status_task.cancel()
 
 def update_aggregated_data():
   data.update_aggregated_data()
