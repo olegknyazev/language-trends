@@ -1,3 +1,13 @@
 .container {
-    width: 800px;
+    width: 900px;
+    margin-bottom: 2em;
+}
+
+.logo {
+    background-color: lightsteelblue;
+    padding: 2em;
+}
+
+.footer {
+    text-align: center;
 }
