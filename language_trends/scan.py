@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from .github import Session as GitHubSession
+from .github import Session as GitHubSession, BEGIN_OF_TIME
 from .languages import ALL_LANGUAGES
 from .asyncutil import for_each_parallel
 from .months import first_day_of_month
@@ -10,22 +10,50 @@ from . import util
 
 MAX_PARALLEL_REPOS = 10
 
-def update_all(log=None):
+def update_all(log=print):
   loop = asyncio.get_event_loop()
   for lang in ALL_LANGUAGES:
     loop.run_until_complete(_update_impl(lang, log=log))
   loop.close()
 
-def update_language(language, log=None):
+def update_language(language, log=print):
   loop = asyncio.get_event_loop()
   loop.run_until_complete(_update_impl(language, log=log))
   loop.close()
 
-async def _update_impl(language, log=None):
+async def _update_impl(language, log=print):
+  until = util.current_date()
+  current_month = first_day_of_month(until)
+  actual_by = data.lang_actual_by(language)
+
+  log(f'Updating {language}')
+  if not actual_by:
+    log('  Language had never been scanned, performing a full scan')
+    await _scan_github(
+      language,
+      until=util.as_datetime(current_month),
+      log=log)
+  elif actual_by < current_month:
+    log(f'  Language is actual by {actual_by}, but now is {current_month}')
+    log(f'  Performing an incremental scan')
+    await _scan_github(
+        language,
+        since=util.as_datetime(actual_by),
+        until=util.as_datetime(current_month),
+        skip_existing=False,
+        log=log)
+  else:
+    log(f'  Language is actual')
+
+  data.store_lang_scan(language, actual_by=current_month)
+
+async def _scan_github(language, since=None, until=None, skip_existing=True, log=print):
+  since = since or BEGIN_OF_TIME
+  until = until or util.current_date()
+
   repos_scanned = 0
   repos_skipped = 0
   total_commits = 0
-  until = util.current_date()
 
   async def print_status_periodically():
     nonlocal repos_scanned
@@ -49,7 +77,7 @@ async def _update_impl(language, log=None):
         status_string = 'Abuse detected, waiting for some time...'
       else:
         status_string = (
-          '{}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec.'.format(
+          '  {}: {} scanned, {} skipped, {} commits, {:.3} repos/sec. {} req./sec.'.format(
             language,
             repos_scanned,
             repos_skipped,
@@ -64,13 +92,13 @@ async def _update_impl(language, log=None):
 
   async def process_repo(repo):
     nonlocal repos_skipped
-    if data.is_repo_exists(repo['id']):
+    if skip_existing and data.is_repo_exists(repo['id']):
       repos_skipped += 1
       return
     commits = (
       await github.fetch_commits_monthly_breakdown(
         repo['id'],
-        since=repo['createdAt'],
+        since=max((since, repo['createdAt'])),
         until=min((until, repo['pushedAt']))))
     update_repo(repo, commits)
 
@@ -83,26 +111,26 @@ async def _update_impl(language, log=None):
     repos_scanned += 1
     total_commits += sum(x[1] for x in commits)
 
-  if log is not None:
-    log('Scanning ' + language)
-    loop = asyncio.get_event_loop()
-    status_task = loop.create_task(print_status_periodically())
+  status_task = asyncio.ensure_future(print_status_periodically())
 
   async with GitHubSession() as github:
-    repos = github.fetch_repos(language, ['id', 'name', 'createdAt', 'pushedAt'])
+    repos = (
+      github.fetch_repos(
+        language,
+        ['id', 'name', 'createdAt', 'pushedAt'],
+        pushed_after=since,
+        until=until))
     await for_each_parallel(repos, process_repo, MAX_PARALLEL_REPOS)
 
-  if log is not None:
-    status_task.cancel()
-
-  data.store_lang_scan(language, actual_by=first_day_of_month(until))
+  status_task.cancel()
 
 def update_aggregated_data():
   data.update_aggregated_data()
 
 def main():
   try:
-    update_language('clojure', log=print)
+    # update_language('clojure', log=print)
+    update_all(log=print)
   except KeyboardInterrupt:
     pass
   update_aggregated_data()
