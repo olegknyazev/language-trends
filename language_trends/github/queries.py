@@ -9,20 +9,20 @@ from language_trends.months import months_between
 MAX_PAGE_SIZE = 100
 
 REPO_COUNT_PATH = ['data', 'search', 'repositoryCount']
-def repo_count(language, **search_args):
+def repo_count(lang, **search_args):
   return string.Template(r'''{
       $search {
         repositoryCount
-      }}''').substitute(search=_search_clause(language, **search_args))
+      }}''').substitute(search=_search_clause(lang, **search_args))
 
 SEARCH_REPOS_BASE_PATH = ['data', 'search', 'nodes']
-def search_repos(language, repository_fields, **search_args):
+def search_repos(lang, repository_fields, **search_args):
   return string.Template(r'''{
       $search {
         nodes {
           ... on Repository {
             $repository_fields }}}}''').substitute(
-              search=_search_clause(language, **search_args),
+              search=_search_clause(lang, **search_args),
               repository_fields=' '.join(repository_fields))
 
 REPO_MONTHLY_TOTAL_COMMITS_BASE_PATH = ['data', 'node', 'defaultBranchRef', 'target']
@@ -51,19 +51,19 @@ def _commits_within(since, until):
   history_args = f'since: "{_fmt_date(since)}", until: "{_fmt_date(until)}"'
   return f'{month_id}: history({history_args}) {{ totalCount }}'
 
-def _search_clause(language, *, first=MAX_PAGE_SIZE, created_range=None, pushed_after=None):
+def _search_clause(lang, *, first=MAX_PAGE_SIZE, created_range=None, pushed_after=None):
   args = {'first': first}
-  args.update(_search_args(language, created_range=created_range, pushed_after=pushed_after))
+  args.update(_search_args(lang, created_range=created_range, pushed_after=pushed_after))
   return f'search ({_join_args(args)})'
 
-def _search_args(language, *, created_range=None, pushed_after=None):
+def _search_args(lang, *, created_range=None, pushed_after=None):
   additional_args = ''
   if created_range is not None:
     additional_args += f' created:{_fmt_date(created_range[0])}..{_fmt_date(created_range[1])}'
   if pushed_after is not None:
     additional_args += f' pushed:>={_fmt_date(pushed_after)}'
   return {
-    'query': f'"language:{language} size:>=10000 {additional_args}"',
+    'query': f'"language:{lang} size:>=10000 {additional_args}"',
     'type': 'REPOSITORY'}
 
 def _join_args(args):

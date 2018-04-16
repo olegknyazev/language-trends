@@ -3,14 +3,14 @@ from contextlib import contextmanager
 from . import migrations
 from . import access
 
-def store_repo(id, name, language):
+def store_repo(id, name, lang):
   with _transaction() as c:
     c.execute('''
       INSERT INTO repos VALUES (%s, %s, %s)
         ON CONFLICT (id) DO UPDATE
           SET name = EXCLUDED.name,
               lang = EXCLUDED.lang;''',
-      (id, name, language))
+      (id, name, lang))
 
 def store_commits(repo_id, data):
   with _transaction() as c:
@@ -33,9 +33,9 @@ def update_aggregated_data():
   with _transaction() as c:
     c.execute('REFRESH MATERIALIZED VIEW commits_by_lang;')
 
-def repo_count(language):
+def repo_count(lang):
   with _transaction() as c:
-    c.execute('SELECT COUNT(*) FROM repos WHERE lang = %s;', (language,))
+    c.execute('SELECT COUNT(*) FROM repos WHERE lang = %s;', (lang,))
     return c.fetchone()[0]
 
 def is_repo_exists(repo_id):
@@ -67,14 +67,14 @@ def language_stats(languages):
       report.append((lang, repo_count, commit_count))
     return report
 
-def commits_by_language(language):
+def commits_by_language(lang):
   with _transaction() as c:
     c.execute(f'''
       SELECT date, commits_since_prev
         FROM commits_by_lang
         WHERE lang = %s
         ORDER BY date;''',
-      (language,))
+      (lang,))
     return [(x[0], int(x[1])) for x in c]
 
 _migrated = False

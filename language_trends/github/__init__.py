@@ -30,9 +30,9 @@ class Session:
   async def __aexit__(self, exc_type, exc_val, exc_tb):
     await self._api_session.__aexit__(exc_type, exc_val, exc_tb)
 
-  async def repo_count(self, language, **query_args):
+  async def repo_count(self, lang, **query_args):
     """Returns number of repositories by the specified language."""
-    result = await self._api_session.query(queries.repo_count(language, **query_args))
+    result = await self._api_session.query(queries.repo_count(lang, **query_args))
     return getin(result, *queries.REPO_COUNT_PATH)
 
   async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=None):
@@ -70,16 +70,16 @@ class Session:
     monthly_commits.sort(key=lambda kv: kv[0])
     return iterate_commits(monthly_commits)
 
-  async def fetch_repos(self, language, fields, pushed_after=None, until=None):
+  async def fetch_repos(self, lang, fields, pushed_after=None, until=None):
     async def fetch(start, end, **args):
       result = (
         await self._api_session.query(
-          queries.search_repos(language, fields, created_range=(start, end), **args)))
+          queries.search_repos(lang, fields, created_range=(start, end), **args)))
       for repo in getin(result, *queries.SEARCH_REPOS_BASE_PATH):
         yield _parse_dates_to_utc(repo)
 
     async def binary_traverse(start, end, **args):
-      count = await self.repo_count(language, created_range=(start, end), **args)
+      count = await self.repo_count(lang, created_range=(start, end), **args)
       if count < queries.MAX_PAGE_SIZE:
         async for repo in fetch(start, end, **args):
           yield repo

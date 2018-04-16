@@ -16,28 +16,28 @@ def update_all(log=print):
     loop.run_until_complete(_update_impl(lang, log=log))
   loop.close()
 
-def update_language(language, log=print):
+def update_language(lang, log=print):
   loop = asyncio.get_event_loop()
-  loop.run_until_complete(_update_impl(language, log=log))
+  loop.run_until_complete(_update_impl(lang, log=log))
   loop.close()
 
-async def _update_impl(language, log=print):
+async def _update_impl(lang, log=print):
   until = util.current_date()
   current_month = first_day_of_month(until)
-  actual_by = data.lang_actual_by(language)
+  actual_by = data.lang_actual_by(lang)
 
-  log(f'Updating {language}')
+  log(f'Updating {lang}')
   if not actual_by:
     log('  Language had never been scanned, performing a full scan')
     await _scan_github(
-      language,
+      lang,
       until=util.as_datetime(current_month),
       log=log)
   elif actual_by < current_month:
     log(f'  Language is actual by {actual_by}, but now is {current_month}')
     log(f'  Performing an incremental scan')
     await _scan_github(
-        language,
+        lang,
         since=util.as_datetime(actual_by),
         until=util.as_datetime(current_month),
         skip_existing=False,
@@ -45,9 +45,9 @@ async def _update_impl(language, log=print):
   else:
     log(f'  Language is actual')
 
-  data.store_lang_scan(language, actual_by=current_month)
+  data.store_lang_scan(lang, actual_by=current_month)
 
-async def _scan_github(language, since=None, until=None, skip_existing=True, log=print):
+async def _scan_github(lang, since=None, until=None, skip_existing=True, log=print):
   since = since or BEGIN_OF_TIME
   until = until or util.current_date()
 
@@ -78,7 +78,7 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
         status_string = '  Abuse detected, waiting for some time...'
       else:
         status_string = (
-          f'  {language}:' +
+          f'  {lang}:' +
           f' {repos_scanned} scanned,' +
           f' {repos_skipped} skipped' +
           f' ({repos_processed} / {repos_total}, {int(repos_processed / repos_total * 100)}%),' +
@@ -107,7 +107,7 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
     nonlocal repos_scanned
     nonlocal total_commits
     commits = list(commits)
-    data.store_repo(repo['id'], repo['name'], language)
+    data.store_repo(repo['id'], repo['name'], lang)
     data.store_commits(repo['id'], commits)
     repos_scanned += 1
     total_commits += sum(x[1] for x in commits)
@@ -115,7 +115,7 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
   async with GitHubSession() as github:
     repos_total = (
       await github.repo_count(
-        language,
+        lang,
         created_range=(BEGIN_OF_TIME, until),
         pushed_after=since))
     log(f'  {repos_total} repositories to scan')
@@ -123,7 +123,7 @@ async def _scan_github(language, since=None, until=None, skip_existing=True, log
     try:
       repos = (
         github.fetch_repos(
-          language,
+          lang,
           ['id', 'name', 'createdAt', 'pushedAt'],
           pushed_after=since,
           until=until))
