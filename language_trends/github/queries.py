@@ -70,7 +70,9 @@ def _join_args(args):
   return ', '.join(f'{k}: {v}' for k, v in args.items())
 
 def _fmt_date(d):
+  if isinstance(d, datetime):
+    return d.replace(microsecond=0).isoformat()
   if isinstance(d, date):
-    d = datetime.combine(d, time.min)
-  return d.isoformat() if isinstance(d, datetime) else d
+    return datetime.combine(d, time.min).isoformat()
+  raise Exception(f'{d} is not a date nor datetime')
 
