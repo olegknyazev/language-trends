@@ -87,7 +87,8 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
           f'  {lang}:' +
           f' {repos_scanned} scanned,' +
           f' {repos_skipped} skipped' +
-          f' ({repos_processed} / {repos_total}, {int(repos_processed / repos_total * 100)}%),' +
+         (f' ({repos_processed} / {repos_total}, {int(repos_processed / repos_total * 100)}%),'
+            if repos_total else '') +
           f' {total_commits} commits,' +
           f' {repos_per_second:.3} repos/sec.,' +
           f' {requests_per_second:.3} req./sec.')
@@ -118,15 +119,14 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
     repos_scanned += 1
     total_commits += sum(x[1] for x in commits)
 
-  async with GitHubSession() as github:
-    repos_total = (
-      await github.repo_count(
-        lang,
-        created_range=(BEGIN_OF_TIME, until),
-        pushed_after=since))
-    log(f'  {repos_total} repositories to scan')
-    status_task = asyncio.ensure_future(print_status_periodically())
-    try:
+  status_task = asyncio.ensure_future(print_status_periodically())
+  try:
+    async with GitHubSession() as github:
+      repos_total = (
+        await github.repo_count(
+          lang,
+          created_range=(BEGIN_OF_TIME, until),
+          pushed_after=since))
       repos = (
         github.fetch_repos(
           lang,
@@ -134,8 +134,8 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
           pushed_after=since,
           until=until))
       await for_each_parallel(repos, process_repo, MAX_PARALLEL_REPOS)
-    finally:
-      status_task.cancel()
+  finally:
+    status_task.cancel()
 
 if __name__ == '__main__':
   import sys
