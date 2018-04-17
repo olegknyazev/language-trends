@@ -7,7 +7,7 @@ in action [here](http://oleg-knyazev.com/language-trends/).
 * Python 3.6
 * PostgreSQL
 
-## Install
+## Installation
 
 1. Install requirements:
 
@@ -21,14 +21,16 @@ in action [here](http://oleg-knyazev.com/language-trends/).
 
 2. Create a database
 
-3. Edit `CONNECTION_PARAMS` in file `<checkout-directory>/language_trends/data/__init__.py`
-   to make it point on a newly created database.
+3. Edit `CONNECTION_PARAMS` in the file `language_trends/data/access.py` to make it
+   point on a newly created database.
 
 4. Put your GitHub API access token in file `auth_token.txt`. See
    [instructions](https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/)
-   on how to generate a token.
+   on how to generate a token. No special grants are required (the app uses only publicly
+   available information), so, you can leave all the checkboxes on the token generation
+   page unchecked.
 
-## Run
+## Running
 
 ### Running a scan process
 
