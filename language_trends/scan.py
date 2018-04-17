@@ -62,7 +62,7 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
   repos_skipped = 0
   total_commits = 0
 
-  async def print_status_periodically():
+  async def dump_status_periodically():
     nonlocal repos_scanned
     nonlocal repos_skipped
     nonlocal total_commits
@@ -119,7 +119,7 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
     repos_scanned += 1
     total_commits += sum(x[1] for x in commits)
 
-  status_task = asyncio.ensure_future(print_status_periodically())
+  status_task = asyncio.ensure_future(dump_status_periodically())
   try:
     async with GitHubSession() as github:
       repos_total = (
@@ -140,4 +140,3 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
 if __name__ == '__main__':
   import sys
   main(sys.argv[1:])
-

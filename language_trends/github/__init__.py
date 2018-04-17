@@ -1,3 +1,10 @@
+"""Abstracts interaction with GitHub. Provides a sole class Session that provides
+asynchronous API for various data retrievals.
+
+It uses GitHub GraphQL API, understanding of which is essential to understand
+this package: https://developer.github.com/v4/
+"""
+
 from datetime import datetime, timezone
 
 import dateutil.parser
@@ -9,7 +16,6 @@ from . import api
 
 BEGIN_OF_TIME = datetime(2008, 1, 1)
 
-# TODO transform into bunch of free functions? (client will create an underlying session directly)
 class Session:
   def __init__(self):
     self._api_session = api.Session()
@@ -36,6 +42,13 @@ class Session:
     return getin(result, *queries.REPO_COUNT_PATH)
 
   async def fetch_commits_monthly_breakdown(self, repo_id, since=BEGIN_OF_TIME, until=None):
+    """Yields an ordered sequence of monthly commit amounts for a given `repo_id`.
+    The yielded values are in shape (date, monthly_count, total_count), where
+      date          - the first day of an each month
+      monthly_count - the amount of commits made to this repo in this month
+      total_count   - the total amount of commits made to this repo since its
+                      creation
+    """
     def iterate_commits(monthly_commits):
       total_count = 0
       for date, info in monthly_commits:
@@ -46,6 +59,9 @@ class Session:
     since = first_day_of_month(since)
     until = first_day_of_month(until or current_date())
 
+    # Retrieve commits monthly data by small portions because GitHub fails
+    # sometimes when there are too many keys in a Repository object. If
+    # it happens, we shrink the portion size.
     num_intervals = num_of_months_between(since, until) - 1
     monthly_commits = []
     interval_width = 40
@@ -71,6 +87,10 @@ class Session:
     return iterate_commits(monthly_commits)
 
   async def fetch_repos(self, lang, fields, pushed_after=None, until=None):
+    """Yields all the repos by a given `lang`. Parameter `fields` specifies
+    which data will be returned on each repository. It should be a list of
+    strings whose will become keys in a yielded maps.
+    """
     async def fetch(start, end, **args):
       result = (
         await self._api_session.query(
@@ -90,6 +110,10 @@ class Session:
         async for repo in binary_traverse(mid, end, **args):
           yield repo
 
+    # GitHub API doesn't allow to just get all the repositories by a given
+    # language. It has an implicit limit of 1000 results for any search query.
+    # So, we're performing a clever trick here - using binary division of search
+    # queries based on a repository creation time.
     until = until or current_date()
     async for repo in binary_traverse(BEGIN_OF_TIME, until, pushed_after=pushed_after):
       yield repo

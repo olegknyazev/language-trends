@@ -1,7 +1,8 @@
 import itertools
 import os
 import re
-from glob import glob
+
+MIGRATION_PATTERN = re.compile(r'_\d{3}_.*\.py')
 
 def migrate(cursor, max_count = -1):
   _initialize_migration_table(cursor)
