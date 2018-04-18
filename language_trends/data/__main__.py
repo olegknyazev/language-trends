@@ -9,6 +9,10 @@ def main(args):
     print('    rollback      - rollback the last migration')
     print('    rollback all  - (CAUTION!) rollback to an empty database state')
     print('')
+
+  def parse_count(count):
+    return -1 if count == 'all' else int(count)
+
   if not args:
     print_usage()
     return
@@ -18,7 +22,7 @@ def main(args):
       migrations.migrate(c)
   elif cmd == 'rollback':
     with access.transaction() as c:
-      migrations.rollback(c, max_count=(int(args[1]) if len(args) > 1 else -1))
+      migrations.rollback(c, max_count=(parse_count(args[1]) if len(args) > 1 else 1))
   else:
     print_usage()
     return
