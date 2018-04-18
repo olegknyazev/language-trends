@@ -70,13 +70,16 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
     last_time = time.perf_counter()
     last_status_string = ''
     last_requests_sent = 0
+    total_time_elapsed = 0
     while True:
       await asyncio.sleep(3)
       now = time.perf_counter()
       time_elapsed = now - last_time
+      total_time_elapsed += time_elapsed
       last_time = now
       repos_processed = repos_scanned + repos_skipped
       repos_per_second = (repos_processed - last_repos_processed) / time_elapsed
+      repos_per_second_avg = repos_processed / total_time_elapsed
       requests_per_second = (github.requests_sent - last_requests_sent) / time_elapsed
       if github.rate_limited:
         status_string = '  Rate limited, waiting for some time...'
@@ -90,8 +93,9 @@ async def _scan_github(lang, since=None, until=None, skip_existing=True, log=pri
          (f' ({repos_processed} / {repos_total}, {int(repos_processed / repos_total * 100)}%),'
             if repos_total else '') +
           f' {total_commits} commits,' +
-          f' {repos_per_second:.3} repos/sec.,' +
-          f' {requests_per_second:.3} req./sec.')
+          f' {repos_per_second:.1f} repos/sec.' +
+          f' ({repos_per_second_avg:.1f} avg.),' +
+          f' {requests_per_second:.1f} req./sec.')
       if status_string != last_status_string:
         log(status_string)
         last_status_string = status_string
